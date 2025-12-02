@@ -1,4 +1,4 @@
-# My Fitness App
+# Fitness App
 
 A comprehensive fitness tracking application for monitoring body composition, performance metrics, and progress over time.
 

@@ -78,7 +78,7 @@ const toolsItems = [
   },
   {
     title: "VO2max Test",
-    href: "/tools/cooper-test",
+    href: "/tools/vo2max",
     icon: Calculator,
   },
   {
@@ -125,7 +125,7 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push("/sign-in");
+      router.push("/welcome");
     }
   }, [isAuthenticated, isLoading, router]);
 

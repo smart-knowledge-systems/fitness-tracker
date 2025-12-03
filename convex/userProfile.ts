@@ -22,6 +22,7 @@ export const upsert = mutation({
     sex: v.union(v.literal("male"), v.literal("female")),
     birthDate: v.number(),
     height: v.number(),
+    race: v.optional(v.union(v.literal("caucasian"), v.literal("black"))),
     weightUnit: v.optional(v.union(v.literal("kg"), v.literal("lbs"))),
     lengthUnit: v.optional(v.union(v.literal("cm"), v.literal("in"))),
   },

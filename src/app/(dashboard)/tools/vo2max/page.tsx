@@ -21,6 +21,7 @@ import {
 } from "@/lib/calculations";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { toLocalDateString, localDateStringToTimestamp } from "@/lib/dateUtils";
 
 export default function CooperTestPage() {
   const userProfile = useQuery(api.userProfile.get);
@@ -43,9 +44,7 @@ export default function CooperTestPage() {
   const [raceVo2max1k, setRaceVo2max1k] = useState<number | null>(null);
 
   // Log result state
-  const [logDate, setLogDate] = useState(
-    new Date().toISOString().split("T")[0],
-  );
+  const [logDate, setLogDate] = useState(toLocalDateString(new Date()));
   const [saved, setSaved] = useState(false);
   const createMeasurement = useMutation(api.measurements.create);
 
@@ -120,7 +119,7 @@ export default function CooperTestPage() {
     options?: { time5k?: string; time1k?: string },
   ) => {
     await createMeasurement({
-      date: new Date(logDate).getTime(),
+      date: localDateStringToTimestamp(logDate),
       vo2max,
       time5k: options?.time5k ? parseTimeToSeconds(options.time5k) : undefined,
       time1k: options?.time1k ? parseTimeToSeconds(options.time1k) : undefined,

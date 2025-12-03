@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   LineChart,
   Line,
@@ -11,7 +11,6 @@ import {
   Legend,
 } from "recharts";
 import {
-  ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
@@ -24,14 +23,12 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  buildWiggleChartData,
-  METRIC_CONFIG,
-  type WiggleDataPoint,
-} from "@/lib/calculations/goalProjections";
+import { METRIC_CONFIG } from "@/lib/calculations/goalProjections";
+import { formatShortDate, formatDateWithYear } from "@/lib/dateUtils";
+import { useWiggleChartData } from "@/hooks/useWiggleChartData";
 import type { Doc } from "@/convex/_generated/dataModel";
 
-// Chart colors for different goals - exported for use by GoalCard
+// Chart colors for different goals - exported for use by GoalCard and hook
 export const GOAL_COLORS = [
   "var(--chart-1)",
   "var(--chart-2)",
@@ -51,149 +48,29 @@ interface WiggleChartProps {
   weeks?: number;
 }
 
-interface ChartDataPoint {
-  snapshotDate: number;
-  [goalId: string]: number;
-}
-
-const WEEK_OPTIONS = [4, 8, 16] as const;
-
 export function WiggleChart({
   goals,
   measurements,
   profile,
   weeks,
 }: WiggleChartProps) {
-  // Stable reference time for calculations (doesn't change on re-renders)
-  const [now] = useState(() => Date.now());
   const [selectedWeeks, setSelectedWeeks] = useState<number>(4);
   const activeWeeks = weeks ?? selectedWeeks;
 
-  // Build wiggle data for each goal
-  const { chartData, goalColorMap, chartConfig } = useMemo(() => {
-    const goalColorMap: Record<string, string> = {};
-    const chartConfig: ChartConfig = {};
-    const wiggleDataByGoal: Record<string, WiggleDataPoint[]> = {};
-
-    // Generate data for each active goal
-    goals
-      .filter((g) => !g.completed)
-      .forEach((goal, index) => {
-        const color = GOAL_COLORS[index % GOAL_COLORS.length];
-        goalColorMap[goal._id] = color;
-
-        const label = METRIC_CONFIG[goal.metric]?.label ?? goal.metric;
-        chartConfig[goal._id] = {
-          label,
-          color,
-        };
-
-        const wiggleData = buildWiggleChartData(
-          measurements,
-          goal.metric,
-          goal.targetValue,
-          profile,
-          activeWeeks,
-          goal.direction,
-        );
-        wiggleDataByGoal[goal._id] = wiggleData;
-      });
-
-    // Merge all wiggle data into chart data points
-    // Each point has snapshotDate and projected dates for each goal
-    const allSnapshotDates = new Set<number>();
-    Object.values(wiggleDataByGoal).forEach((data) => {
-      data.forEach((point) => allSnapshotDates.add(point.snapshotDate));
-    });
-
-    const sortedDates = Array.from(allSnapshotDates).sort((a, b) => a - b);
-
-    const chartData: ChartDataPoint[] = sortedDates.map((snapshotDate) => {
-      const point: ChartDataPoint = { snapshotDate };
-
-      Object.entries(wiggleDataByGoal).forEach(([goalId, data]) => {
-        const match = data.find((d) => d.snapshotDate === snapshotDate);
-        if (match) {
-          point[goalId] = match.projectedDate;
-        }
-      });
-
-      return point;
-    });
-
-    return { chartData, goalColorMap, chartConfig };
-  }, [goals, measurements, profile, activeWeeks]);
-
-  // Format dates for display
-  const formatSnapshotDate = (timestamp: number) =>
-    new Date(timestamp).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-    });
-
-  const formatProjectedDate = (timestamp: number) =>
-    new Date(timestamp).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "2-digit",
-    });
-
-  // Build set of hidden goal IDs from goal data
-  const hiddenGoalIds = useMemo(() => {
-    const hidden = new Set<string>();
-    goals.forEach((goal) => {
-      if (goal.isVisibleOnChart === false) {
-        hidden.add(goal._id);
-      }
-    });
-    return hidden;
-  }, [goals]);
-
-  // Calculate Y-axis domain (only for visible goals)
-  const yDomain = useMemo(() => {
-    const allProjectedDates: number[] = [];
-    chartData.forEach((point) => {
-      Object.entries(point).forEach(([key, value]) => {
-        if (
-          key !== "snapshotDate" &&
-          typeof value === "number" &&
-          !hiddenGoalIds.has(key)
-        ) {
-          allProjectedDates.push(value);
-        }
-      });
-    });
-
-    // Also include target dates (only for visible goals)
-    goals
-      .filter((g) => !g.completed && g.targetDate && !hiddenGoalIds.has(g._id))
-      .forEach((g) => {
-        if (g.targetDate) allProjectedDates.push(g.targetDate);
-      });
-
-    if (allProjectedDates.length === 0) {
-      return [now, now + 90 * 24 * 60 * 60 * 1000]; // 90 days from now
-    }
-
-    const minDate = Math.min(...allProjectedDates);
-    const maxDate = Math.max(...allProjectedDates);
-    const padding = (maxDate - minDate) * 0.1 || 30 * 24 * 60 * 60 * 1000;
-
-    return [minDate - padding, maxDate + padding];
-  }, [chartData, goals, now, hiddenGoalIds]);
-
-  const activeGoals = goals.filter((g) => !g.completed);
-
-  // Calculate which week options have enough data
-  const availableWeekOptions = useMemo(() => {
-    if (measurements.length === 0) return [4];
-
-    const measurementDates = measurements.map((m) => m.date);
-    const oldestDate = Math.min(...measurementDates);
-    const dataSpanWeeks = (now - oldestDate) / (7 * 24 * 60 * 60 * 1000);
-
-    return WEEK_OPTIONS.filter((w) => dataSpanWeeks >= w - 1);
-  }, [measurements, now]);
+  const {
+    chartData,
+    goalColorMap,
+    chartConfig,
+    hiddenGoalIds,
+    yDomain,
+    availableWeekOptions,
+    activeGoals,
+  } = useWiggleChartData({
+    goals,
+    measurements,
+    profile,
+    weeks: activeWeeks,
+  });
 
   if (activeGoals.length === 0) {
     return null;
@@ -252,7 +129,7 @@ export function WiggleChart({
               type="number"
               scale="time"
               domain={["dataMin", "dataMax"]}
-              tickFormatter={formatSnapshotDate}
+              tickFormatter={formatShortDate}
               tickLine={false}
               axisLine={false}
               tickMargin={8}
@@ -261,7 +138,7 @@ export function WiggleChart({
               type="number"
               scale="time"
               domain={yDomain}
-              tickFormatter={formatProjectedDate}
+              tickFormatter={formatDateWithYear}
               tickLine={false}
               axisLine={false}
               tickMargin={8}
@@ -286,7 +163,7 @@ export function WiggleChart({
                       ? (METRIC_CONFIG[goal.metric]?.label ?? goal.metric)
                       : name;
                     return [
-                      `Est. ${formatProjectedDate(value as number)}`,
+                      `Est. ${formatDateWithYear(value as number)}`,
                       label,
                     ];
                   }}

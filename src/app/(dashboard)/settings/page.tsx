@@ -22,12 +22,16 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { toLocalDateString, localDateStringToTimestamp } from "@/lib/dateUtils";
 
 export default function SettingsPage() {
   const userProfile = useQuery(api.userProfile.get);
   const upsertProfile = useMutation(api.userProfile.upsert);
 
   const [sex, setSex] = useState<"male" | "female">("male");
+  const [race, setRace] = useState<"caucasian" | "black" | "not-set">(
+    "not-set",
+  );
   const [birthDate, setBirthDate] = useState("");
   const [height, setHeight] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -36,7 +40,8 @@ export default function SettingsPage() {
   useEffect(() => {
     if (userProfile) {
       setSex(userProfile.sex);
-      setBirthDate(new Date(userProfile.birthDate).toISOString().split("T")[0]);
+      setRace(userProfile.race ?? "not-set");
+      setBirthDate(toLocalDateString(new Date(userProfile.birthDate)));
       setHeight(userProfile.height.toString());
     }
   }, [userProfile]);
@@ -46,7 +51,7 @@ export default function SettingsPage() {
     setIsSubmitting(true);
 
     const heightNum = parseFloat(height);
-    const birthDateTimestamp = new Date(birthDate).getTime();
+    const birthDateTimestamp = localDateStringToTimestamp(birthDate);
 
     if (isNaN(heightNum) || heightNum <= 0) {
       toast.error("Please enter a valid height");
@@ -65,6 +70,7 @@ export default function SettingsPage() {
         sex,
         birthDate: birthDateTimestamp,
         height: heightNum,
+        race: race === "not-set" ? undefined : race,
       });
       toast.success("Profile saved!");
     } catch (error) {
@@ -77,7 +83,7 @@ export default function SettingsPage() {
 
   const age = birthDate
     ? Math.floor(
-        (Date.now() - new Date(birthDate).getTime()) /
+        (Date.now() - localDateStringToTimestamp(birthDate)) /
           (365.25 * 24 * 60 * 60 * 1000),
       )
     : null;
@@ -115,6 +121,29 @@ export default function SettingsPage() {
                 </Select>
                 <p className="text-xs text-muted-foreground">
                   Required for body fat formulas
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="race">Ethnicity (for body composition)</Label>
+                <Select
+                  value={race}
+                  onValueChange={(value: "caucasian" | "black" | "not-set") =>
+                    setRace(value)
+                  }
+                >
+                  <SelectTrigger id="race">
+                    <SelectValue placeholder="Select..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="not-set">Other / Not Set</SelectItem>
+                    <SelectItem value="caucasian">Caucasian</SelectItem>
+                    <SelectItem value="black">Black</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Used in some body fat calculators (Evans equations). These
+                  options don&apos;t provide universal coverage.
                 </p>
               </div>
 
@@ -171,32 +200,161 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-muted-foreground">
           <p>
-            This app calculates body fat percentage using four different methods
-            and averages the results:
+            This app calculates body fat percentage using 10 validated methods
+            and produces a weighted average based on a 2023 validation study.
+            Most methods use skinfold measurements unless otherwise noted.
           </p>
-          <ul className="list-disc list-inside space-y-2">
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b">
+                  <th className="pb-2 font-medium">Method</th>
+                  <th className="pb-2 font-medium">Measurements</th>
+                  <th className="pb-2 font-medium">Notes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <tr>
+                  <td className="py-1.5">Navy</td>
+                  <td className="py-1.5">
+                    waist, neck, height (+hip for women)
+                  </td>
+                  <td className="py-1.5">Circumference</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5">Evans 3-site</td>
+                  <td className="py-1.5">tricep, thigh, abdominal</td>
+                  <td className="py-1.5">Requires ethnicity</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5">Evans 7-site</td>
+                  <td className="py-1.5">all 7 skinfold sites</td>
+                  <td className="py-1.5">Requires ethnicity</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5">Jackson-Pollock 7</td>
+                  <td className="py-1.5">7 skinfolds</td>
+                  <td className="py-1.5">—</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5">Jackson-Pollock 3</td>
+                  <td className="py-1.5">3 skinfolds (varies by sex)</td>
+                  <td className="py-1.5">—</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5">Durnin-Womersley</td>
+                  <td className="py-1.5">
+                    bicep, tricep, subscapular, suprailiac
+                  </td>
+                  <td className="py-1.5">—</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5">Lohman</td>
+                  <td className="py-1.5">tricep, subscapular, abdominal</td>
+                  <td className="py-1.5">—</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5">Katch</td>
+                  <td className="py-1.5">tricep, subscapular, abdominal</td>
+                  <td className="py-1.5">—</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5">Forsyth</td>
+                  <td className="py-1.5">
+                    subscapular, abdominal, tricep, midaxillary
+                  </td>
+                  <td className="py-1.5">—</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5">Thorland</td>
+                  <td className="py-1.5">tricep, subscapular, midaxillary</td>
+                  <td className="py-1.5">—</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p className="font-medium text-foreground">
+            Weighting by Sex (from validation study)
+          </p>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b">
+                  <th className="pb-2 font-medium">Method</th>
+                  <th className="pb-2 font-medium text-center">Female</th>
+                  <th className="pb-2 font-medium text-center">Male</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                <tr>
+                  <td className="py-1.5">Evans 7-site</td>
+                  <td className="py-1.5 text-center">35%</td>
+                  <td className="py-1.5 text-center">10%</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5">Evans 3-site</td>
+                  <td className="py-1.5 text-center">25%</td>
+                  <td className="py-1.5 text-center">40%</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5">JP 3-site</td>
+                  <td className="py-1.5 text-center">25%</td>
+                  <td className="py-1.5 text-center">0%</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5">Forsyth</td>
+                  <td className="py-1.5 text-center">10%</td>
+                  <td className="py-1.5 text-center">0%</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5">Durnin-Womersley</td>
+                  <td className="py-1.5 text-center">5%</td>
+                  <td className="py-1.5 text-center">20%</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5">Lohman</td>
+                  <td className="py-1.5 text-center">0%</td>
+                  <td className="py-1.5 text-center">20%</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5">Katch</td>
+                  <td className="py-1.5 text-center">0%</td>
+                  <td className="py-1.5 text-center">5%</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5">Thorland</td>
+                  <td className="py-1.5 text-center">0%</td>
+                  <td className="py-1.5 text-center">5%</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5">JP 7-site</td>
+                  <td className="py-1.5 text-center">0%</td>
+                  <td className="py-1.5 text-center">0%</td>
+                </tr>
+                <tr>
+                  <td className="py-1.5">Navy</td>
+                  <td className="py-1.5 text-center">20%</td>
+                  <td className="py-1.5 text-center">20%</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <ul className="list-disc list-inside space-y-1">
             <li>
-              <strong>Navy Method:</strong> Uses waist, neck, and height
-              measurements (+ hip for women)
+              Evans formulas require ethnicity setting; otherwise excluded from
+              average
             </li>
             <li>
-              <strong>Jackson-Pollock 7-site:</strong> Uses 7 skinfold
-              measurements (chest, axilla, tricep, subscapular, abdominal,
-              suprailiac, thigh)
+              Methods with 0% weight diverged from criterion in validation study
             </li>
             <li>
-              <strong>Jackson-Pollock 3-site:</strong> Uses 3 skinfold
-              measurements (different sites for men and women)
-            </li>
-            <li>
-              <strong>Durnin-Womersley:</strong> Uses 4 skinfold measurements
-              (bicep, tricep, subscapular, suprailiac)
+              More measurements = more methods contribute = more accurate result
             </li>
           </ul>
-          <p>
-            The more measurements you provide, the more methods can be used and
-            the more accurate the average will be.
-          </p>
         </CardContent>
       </Card>
     </div>

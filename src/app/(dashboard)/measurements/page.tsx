@@ -31,7 +31,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Trash2, Eye } from "lucide-react";
 import { toast } from "sonner";
-import { MeasurementForm } from "@/components/measurements/MeasurementForm";
+import { AddMeasurementDialog } from "@/components/measurements";
 import { averageBodyFat } from "@/lib/calculations";
 import {
   convertWeightForDisplay,
@@ -232,17 +232,7 @@ export default function MeasurementsPage() {
       </Card>
 
       {/* Add Measurement Dialog */}
-      <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Add Measurement</DialogTitle>
-            <DialogDescription>
-              Enter your measurement data below
-            </DialogDescription>
-          </DialogHeader>
-          <MeasurementForm onSuccess={() => setShowAddForm(false)} />
-        </DialogContent>
-      </Dialog>
+      <AddMeasurementDialog open={showAddForm} onOpenChange={setShowAddForm} />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

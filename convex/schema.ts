@@ -10,6 +10,7 @@ export default defineSchema({
     sex: v.union(v.literal("male"), v.literal("female")),
     birthDate: v.number(), // timestamp for age calculations
     height: v.number(), // cm - baseline height
+    race: v.optional(v.union(v.literal("caucasian"), v.literal("black"))), // for Evans body fat equations
     weightUnit: v.optional(v.union(v.literal("kg"), v.literal("lbs"))), // default: kg
     lengthUnit: v.optional(v.union(v.literal("cm"), v.literal("in"))), // default: cm
     theme: v.optional(

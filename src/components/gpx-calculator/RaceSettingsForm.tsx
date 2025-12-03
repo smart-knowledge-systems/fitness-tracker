@@ -35,8 +35,8 @@ export function RaceSettingsForm({
   const [minutes, setMinutes] = useState<string>("30");
   const [seconds, setSeconds] = useState<string>("0");
   const [elevation, setElevation] = useState<string>("0");
-  const [elevationUnit, setElevationUnit] = useState<"ft" | "m">("ft");
-  const [lapInterval, setLapInterval] = useState<string>("1mile");
+  const [elevationUnit, setElevationUnit] = useState<"ft" | "m">("m");
+  const [lapInterval, setLapInterval] = useState<string>("1km");
   const [error, setError] = useState<string>("");
 
   const handleSubmit = (e: React.FormEvent) => {

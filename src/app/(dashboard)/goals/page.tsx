@@ -3,12 +3,7 @@
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useState, useMemo } from "react";
-import {
-  convertWeightForStorage,
-  convertLengthForStorage,
-  type WeightUnit,
-  type LengthUnit,
-} from "@/lib/unitConversion";
+import { type WeightUnit, type LengthUnit } from "@/lib/unitConversion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,10 +30,17 @@ import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel";
 import { GoalCard, WiggleChart, getGoalColor } from "@/components/goals";
 import {
-  calculateProjection,
   getLatestValue,
   type GoalDirection,
 } from "@/lib/calculations/goalProjections";
+import { useGoalProjections } from "@/hooks/useGoalProjections";
+import {
+  buildMetricOptions,
+  BIDIRECTIONAL_METRICS,
+  isBidirectionalMetric,
+  convertGoalValueForStorage,
+  getDefaultDirection,
+} from "@/lib/goals/metricConfig";
 
 export default function GoalsPage() {
   const goals = useQuery(api.goals.list, { includeCompleted: true });
@@ -55,62 +57,7 @@ export default function GoalsPage() {
 
   // Dynamic metric options based on unit preferences
   const metricOptions = useMemo(
-    () => [
-      {
-        value: "weight",
-        label: `Weight (${weightUnit})`,
-        unit: weightUnit,
-        direction: "decrease" as GoalDirection,
-      },
-      {
-        value: "bodyFat",
-        label: "Body Fat (%)",
-        unit: "%",
-        direction: "decrease" as GoalDirection,
-      },
-      {
-        value: "vo2max",
-        label: "VO2max",
-        unit: "mL/kg/min",
-        direction: "increase" as GoalDirection,
-      },
-      {
-        value: "time5k",
-        label: "5k Time (seconds)",
-        unit: "s",
-        direction: "decrease" as GoalDirection,
-      },
-      {
-        value: "time1k",
-        label: "1k Time (seconds)",
-        unit: "s",
-        direction: "decrease" as GoalDirection,
-      },
-      {
-        value: "leanMass",
-        label: `Lean Mass (${weightUnit})`,
-        unit: weightUnit,
-        direction: "increase" as GoalDirection,
-      },
-      {
-        value: "upperArmCirc",
-        label: `Upper Arm (${lengthUnit})`,
-        unit: lengthUnit,
-        direction: "increase" as GoalDirection,
-      },
-      {
-        value: "chestCirc",
-        label: `Chest (${lengthUnit})`,
-        unit: lengthUnit,
-        direction: "increase" as GoalDirection,
-      },
-      {
-        value: "waistCirc",
-        label: `Waist (${lengthUnit})`,
-        unit: lengthUnit,
-        direction: "decrease" as GoalDirection,
-      },
-    ],
+    () => buildMetricOptions(weightUnit, lengthUnit),
     [weightUnit, lengthUnit],
   );
 
@@ -121,37 +68,17 @@ export default function GoalsPage() {
   const [direction, setDirection] = useState<GoalDirection | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Metrics that support bidirectional goals
-  const bidirectionalMetrics: Record<
-    string,
-    { increase: string; decrease: string }
-  > = {
-    weight: { increase: "Gain weight", decrease: "Lose weight" },
-    bodyFat: { increase: "Increase body fat", decrease: "Reduce body fat" },
-    leanMass: { increase: "Gain lean mass", decrease: "Reduce lean mass" },
-    upperArmCirc: { increase: "Increase size", decrease: "Decrease size" },
-    chestCirc: { increase: "Increase size", decrease: "Decrease size" },
-  };
-
   // Get default direction for selected metric
-  const selectedMetricOption = metricOptions.find((m) => m.value === metric);
-  const defaultDirection = selectedMetricOption?.direction ?? "decrease";
-  const isBidirectional = metric in bidirectionalMetrics;
+  const defaultDirection = getDefaultDirection(metricOptions, metric);
+  const isBidirectional = isBidirectionalMetric(metric);
   const effectiveDirection = direction ?? defaultDirection;
 
-  // Convert goal value to metric based on metric type
-  const convertGoalValueForStorage = (value: number, metricType: string) => {
-    const weightMetrics = ["weight", "leanMass"];
-    const lengthMetrics = ["upperArmCirc", "chestCirc", "waistCirc"];
-
-    if (weightMetrics.includes(metricType)) {
-      return convertWeightForStorage(value, weightUnit);
-    }
-    if (lengthMetrics.includes(metricType)) {
-      return convertLengthForStorage(value, lengthUnit);
-    }
-    return value; // No conversion needed for %, seconds, VO2max, FFMI
-  };
+  // Use the goal projections hook
+  const { goalProjections, activeGoals, completedGoals } = useGoalProjections(
+    goals,
+    measurements,
+    userProfile,
+  );
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,6 +95,8 @@ export default function GoalsPage() {
         targetValue: convertGoalValueForStorage(
           parseFloat(targetValue),
           metric,
+          weightUnit,
+          lengthUnit,
         ),
         targetDate: targetDate ? new Date(targetDate).getTime() : undefined,
         direction: effectiveDirection,
@@ -218,30 +147,6 @@ export default function GoalsPage() {
       console.error(error);
     }
   };
-
-  // Calculate projections for each goal
-  const goalProjections = useMemo(() => {
-    if (!goals || !measurements) return new Map();
-
-    const projections = new Map();
-    for (const goal of goals) {
-      if (!goal.completed) {
-        const projection = calculateProjection(
-          measurements,
-          goal.metric,
-          goal.targetValue,
-          goal.startValue,
-          userProfile,
-          goal.direction,
-        );
-        projections.set(goal._id, projection);
-      }
-    }
-    return projections;
-  }, [goals, measurements, userProfile]);
-
-  const activeGoals = goals?.filter((g) => !g.completed) ?? [];
-  const completedGoals = goals?.filter((g) => g.completed) ?? [];
 
   const isLoading =
     goals === undefined ||
@@ -368,12 +273,12 @@ export default function GoalsPage() {
                   ))}
                 </SelectContent>
               </Select>
-              {selectedMetricOption && isBidirectional && (
+              {metric && isBidirectional && (
                 <div className="flex items-center gap-3 pt-2">
                   <span
                     className={`text-sm ${effectiveDirection === "decrease" ? "font-medium" : "text-muted-foreground"}`}
                   >
-                    {bidirectionalMetrics[metric].decrease}
+                    {BIDIRECTIONAL_METRICS[metric].decrease}
                   </span>
                   <Switch
                     checked={effectiveDirection === "increase"}
@@ -384,16 +289,14 @@ export default function GoalsPage() {
                   <span
                     className={`text-sm ${effectiveDirection === "increase" ? "font-medium" : "text-muted-foreground"}`}
                   >
-                    {bidirectionalMetrics[metric].increase}
+                    {BIDIRECTIONAL_METRICS[metric].increase}
                   </span>
                 </div>
               )}
-              {selectedMetricOption && !isBidirectional && (
+              {metric && !isBidirectional && (
                 <p className="text-xs text-muted-foreground">
                   Goal:{" "}
-                  {selectedMetricOption.direction === "increase"
-                    ? "Increase"
-                    : "Decrease"}{" "}
+                  {defaultDirection === "increase" ? "Increase" : "Decrease"}{" "}
                   this metric
                 </p>
               )}

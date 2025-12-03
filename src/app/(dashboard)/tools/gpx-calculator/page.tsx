@@ -38,8 +38,8 @@ export default function GpxCalculatorPage() {
   const [result, setResult] = useState<LapCalculatorResult | null>(null);
 
   // Display preferences
-  const [elevationUnit, setElevationUnit] = useState<"ft" | "m">("ft");
-  const [paceUnit, setPaceUnit] = useState<"km" | "mi">("mi");
+  const [elevationUnit, setElevationUnit] = useState<"ft" | "m">("m");
+  const [paceUnit, setPaceUnit] = useState<"km" | "mi">("km");
 
   const handleFileUpload = useCallback(
     async (content: string, name: string) => {

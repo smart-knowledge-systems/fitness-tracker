@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import {
   Card,
@@ -15,9 +15,12 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, TrendingDown, TrendingUp, Minus } from "lucide-react";
 import Link from "next/link";
-import { MeasurementQuickEntry } from "@/components/measurements/MeasurementQuickEntry";
-import { averageBodyFat } from "@/lib/calculations";
+import {
+  MeasurementQuickEntry,
+  AddMeasurementDialog,
+} from "@/components/measurements";
 import { convertWeightForDisplay, type WeightUnit } from "@/lib/unitConversion";
+import { useDashboardStats } from "@/hooks/useDashboardStats";
 
 function StatCard({
   title,
@@ -88,9 +91,7 @@ function StatCard({
             <span className="ml-1 text-muted-foreground">from last</span>
           </div>
         ) : (
-          <span className="text-sm text-muted-foreground">
-            No previous data
-          </span>
+          <span className="text-sm text-muted-foreground">No recent data</span>
         )}
       </CardContent>
     </Card>
@@ -98,98 +99,24 @@ function StatCard({
 }
 
 export default function DashboardPage() {
-  const latestMeasurement = useQuery(api.measurements.getLatest);
   const measurements = useQuery(api.measurements.list, { limit: 10 });
   const userProfile = useQuery(api.userProfile.get);
 
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  // Use the dashboard stats hook for all calculations
+  const {
+    currentComposite,
+    bodyFatResult,
+    weightChange,
+    bodyFatChange,
+    vo2maxChange,
+    time5kChange,
+    isLoading,
+  } = useDashboardStats();
+
   // Unit preference
   const weightUnit: WeightUnit = userProfile?.weightUnit ?? "kg";
-
-  const isLoading =
-    latestMeasurement === undefined || userProfile === undefined;
-
-  // Capture current time once on mount for age calculation
-  const [now] = useState(() => Date.now());
-
-  // Calculate age from birth date
-  const age = useMemo(() => {
-    if (!userProfile?.birthDate) return 30;
-    return Math.floor(
-      (now - userProfile.birthDate) / (365.25 * 24 * 60 * 60 * 1000),
-    );
-  }, [userProfile?.birthDate, now]);
-
-  // Calculate body fat from latest measurement
-  const bodyFatResult = useMemo(() => {
-    if (!latestMeasurement || !userProfile) return null;
-
-    return averageBodyFat(
-      {
-        chest: latestMeasurement.skinfoldChest,
-        axilla: latestMeasurement.skinfoldAxilla,
-        tricep: latestMeasurement.skinfoldTricep,
-        subscapular: latestMeasurement.skinfoldSubscapular,
-        abdominal: latestMeasurement.skinfoldAbdominal,
-        suprailiac: latestMeasurement.skinfoldSuprailiac,
-        thigh: latestMeasurement.skinfoldThigh,
-        bicep: latestMeasurement.skinfoldBicep,
-      },
-      {
-        waist: latestMeasurement.waistCirc,
-        neck: latestMeasurement.neckCirc,
-        hip: latestMeasurement.hipCirc,
-        height: latestMeasurement.height ?? userProfile.height,
-      },
-      age,
-      userProfile.sex,
-    );
-  }, [latestMeasurement, userProfile, age]);
-
-  // Calculate changes from previous measurement
-  const { weightChange, bodyFatChange } = useMemo(() => {
-    if (
-      !measurements ||
-      measurements.length < 2 ||
-      !userProfile ||
-      !latestMeasurement
-    ) {
-      return { weightChange: null, bodyFatChange: null };
-    }
-
-    const previous = measurements[1];
-    const wChange =
-      latestMeasurement.weight && previous.weight
-        ? latestMeasurement.weight - previous.weight
-        : null;
-
-    const previousBodyFat = averageBodyFat(
-      {
-        chest: previous.skinfoldChest,
-        axilla: previous.skinfoldAxilla,
-        tricep: previous.skinfoldTricep,
-        subscapular: previous.skinfoldSubscapular,
-        abdominal: previous.skinfoldAbdominal,
-        suprailiac: previous.skinfoldSuprailiac,
-        thigh: previous.skinfoldThigh,
-        bicep: previous.skinfoldBicep,
-      },
-      {
-        waist: previous.waistCirc,
-        neck: previous.neckCirc,
-        hip: previous.hipCirc,
-        height: previous.height ?? userProfile.height,
-      },
-      age,
-      userProfile.sex,
-    );
-
-    const bfChange =
-      bodyFatResult?.average && previousBodyFat.average
-        ? bodyFatResult.average - previousBodyFat.average
-        : null;
-
-    return { weightChange: wChange, bodyFatChange: bfChange };
-  }, [measurements, userProfile, latestMeasurement, age, bodyFatResult]);
 
   // Check if profile is incomplete
   const profileIncomplete = !userProfile;
@@ -203,11 +130,9 @@ export default function DashboardPage() {
             Track your fitness measurements and progress
           </p>
         </div>
-        <Button asChild>
-          <Link href="/measurements">
-            <Plus className="mr-2 h-4 w-4" />
-            New Measurement
-          </Link>
+        <Button onClick={() => setShowAddForm(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          New Measurement
         </Button>
       </div>
 
@@ -232,8 +157,8 @@ export default function DashboardPage() {
         <StatCard
           title="Weight"
           value={
-            latestMeasurement?.weight
-              ? convertWeightForDisplay(latestMeasurement.weight, weightUnit)
+            currentComposite?.weight != null
+              ? convertWeightForDisplay(currentComposite.weight, weightUnit)
               : null
           }
           unit={weightUnit}
@@ -246,23 +171,27 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Body Fat"
-          value={bodyFatResult?.average}
+          value={bodyFatResult?.weighted}
           unit="%"
           change={bodyFatChange}
           loading={isLoading}
         />
         <StatCard
           title="VO2max"
-          value={latestMeasurement?.vo2max}
+          value={currentComposite?.vo2max}
           unit="mL/kg/min"
+          change={vo2maxChange}
           loading={isLoading}
         />
         <StatCard
           title="5k Time"
           value={
-            latestMeasurement?.time5k ? latestMeasurement.time5k / 60 : null
+            currentComposite?.time5k != null
+              ? currentComposite.time5k / 60
+              : null
           }
           unit="min"
+          change={time5kChange !== null ? time5kChange / 60 : null}
           loading={isLoading}
         />
       </div>
@@ -319,62 +248,114 @@ export default function DashboardPage() {
       </div>
 
       {/* Body Fat Breakdown */}
-      {bodyFatResult &&
-        (bodyFatResult.navy ||
-          bodyFatResult.jp7 ||
-          bodyFatResult.jp3 ||
-          bodyFatResult.dw) && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Body Fat Estimates</CardTitle>
-              <CardDescription>
-                Comparison of different calculation methods
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {bodyFatResult.navy !== null && (
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm text-muted-foreground">Navy Method</p>
-                    <p className="text-2xl font-bold">
-                      {bodyFatResult.navy.toFixed(1)}%
-                    </p>
-                  </div>
-                )}
-                {bodyFatResult.jp7 !== null && (
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm text-muted-foreground">
-                      Jackson-Pollock 7
-                    </p>
-                    <p className="text-2xl font-bold">
-                      {bodyFatResult.jp7.toFixed(1)}%
-                    </p>
-                  </div>
-                )}
-                {bodyFatResult.jp3 !== null && (
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm text-muted-foreground">
-                      Jackson-Pollock 3
-                    </p>
-                    <p className="text-2xl font-bold">
-                      {bodyFatResult.jp3.toFixed(1)}%
-                    </p>
-                  </div>
-                )}
-                {bodyFatResult.dw !== null && (
-                  <div className="rounded-lg border p-4">
-                    <p className="text-sm text-muted-foreground">
-                      Durnin-Womersley
-                    </p>
-                    <p className="text-2xl font-bold">
-                      {bodyFatResult.dw.toFixed(1)}%
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+      {bodyFatResult && bodyFatResult.weighted !== null && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Body Fat Estimates</CardTitle>
+            <CardDescription>
+              Weighted average and individual calculation methods
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {bodyFatResult.weighted !== null && (
+                <div className="rounded-lg border-2 border-primary bg-primary/5 p-4">
+                  <p className="text-sm font-medium text-primary">
+                    Weighted Average
+                  </p>
+                  <p className="text-2xl font-bold">
+                    {bodyFatResult.weighted.toFixed(1)}%
+                  </p>
+                </div>
+              )}
+              {bodyFatResult.navy !== null && (
+                <div className="rounded-lg border p-4">
+                  <p className="text-sm text-muted-foreground">Navy</p>
+                  <p className="text-2xl font-bold">
+                    {bodyFatResult.navy.toFixed(1)}%
+                  </p>
+                </div>
+              )}
+              {bodyFatResult.evans3 !== null && (
+                <div className="rounded-lg border p-4">
+                  <p className="text-sm text-muted-foreground">Evans 3-site</p>
+                  <p className="text-2xl font-bold">
+                    {bodyFatResult.evans3.toFixed(1)}%
+                  </p>
+                </div>
+              )}
+              {bodyFatResult.evans7 !== null && (
+                <div className="rounded-lg border p-4">
+                  <p className="text-sm text-muted-foreground">Evans 7-site</p>
+                  <p className="text-2xl font-bold">
+                    {bodyFatResult.evans7.toFixed(1)}%
+                  </p>
+                </div>
+              )}
+              {bodyFatResult.dw !== null && (
+                <div className="rounded-lg border p-4">
+                  <p className="text-sm text-muted-foreground">
+                    Durnin-Womersley
+                  </p>
+                  <p className="text-2xl font-bold">
+                    {bodyFatResult.dw.toFixed(1)}%
+                  </p>
+                </div>
+              )}
+              {bodyFatResult.lohmanResult !== null && (
+                <div className="rounded-lg border p-4">
+                  <p className="text-sm text-muted-foreground">Lohman</p>
+                  <p className="text-2xl font-bold">
+                    {bodyFatResult.lohmanResult.toFixed(1)}%
+                  </p>
+                </div>
+              )}
+              {bodyFatResult.katchResult !== null && (
+                <div className="rounded-lg border p-4">
+                  <p className="text-sm text-muted-foreground">Katch</p>
+                  <p className="text-2xl font-bold">
+                    {bodyFatResult.katchResult.toFixed(1)}%
+                  </p>
+                </div>
+              )}
+              {bodyFatResult.forsythResult !== null && (
+                <div className="rounded-lg border p-4">
+                  <p className="text-sm text-muted-foreground">Forsyth</p>
+                  <p className="text-2xl font-bold">
+                    {bodyFatResult.forsythResult.toFixed(1)}%
+                  </p>
+                </div>
+              )}
+              {bodyFatResult.thorlandResult !== null && (
+                <div className="rounded-lg border p-4">
+                  <p className="text-sm text-muted-foreground">Thorland</p>
+                  <p className="text-2xl font-bold">
+                    {bodyFatResult.thorlandResult.toFixed(1)}%
+                  </p>
+                </div>
+              )}
+              {bodyFatResult.jp3 !== null && (
+                <div className="rounded-lg border p-4">
+                  <p className="text-sm text-muted-foreground">JP 3-site</p>
+                  <p className="text-2xl font-bold">
+                    {bodyFatResult.jp3.toFixed(1)}%
+                  </p>
+                </div>
+              )}
+              {bodyFatResult.jp7 !== null && (
+                <div className="rounded-lg border p-4">
+                  <p className="text-sm text-muted-foreground">JP 7-site</p>
+                  <p className="text-2xl font-bold">
+                    {bodyFatResult.jp7.toFixed(1)}%
+                  </p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <AddMeasurementDialog open={showAddForm} onOpenChange={setShowAddForm} />
     </div>
   );
 }

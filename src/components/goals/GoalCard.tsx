@@ -8,13 +8,14 @@ import {
   METRIC_CONFIG,
   type ProjectionResult,
 } from "@/lib/calculations/goalProjections";
-import { formatTime } from "@/lib/calculations/fitness";
 import {
-  convertWeightForDisplay,
-  convertLengthForDisplay,
-  type WeightUnit,
-  type LengthUnit,
-} from "@/lib/unitConversion";
+  formatGoalValue,
+  formatGoalRate,
+  formatProjectedDate,
+  getGoalStatus,
+  getTrendConfig,
+} from "@/lib/formatting/goalFormatters";
+import { type WeightUnit, type LengthUnit } from "@/lib/unitConversion";
 import { Check, Trash2, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 
@@ -43,123 +44,24 @@ export function GoalCard({
 }: GoalCardProps) {
   const config = METRIC_CONFIG[goal.metric];
   const metricLabel = config?.label ?? goal.metric;
+  const formatContext = { metric: goal.metric, weightUnit, lengthUnit };
 
-  // Format values based on metric type
-  const formatValue = (value: number): string => {
-    if (goal.metric === "time5k" || goal.metric === "time1k") {
-      return formatTime(value);
-    }
-    if (goal.metric === "weight" || goal.metric === "leanMass") {
-      const converted = convertWeightForDisplay(value, weightUnit);
-      return `${converted.toFixed(1)} ${weightUnit}`;
-    }
-    if (
-      goal.metric === "waistCirc" ||
-      goal.metric === "upperArmCirc" ||
-      goal.metric === "chestCirc"
-    ) {
-      const converted = convertLengthForDisplay(value, lengthUnit);
-      return `${converted.toFixed(1)} ${lengthUnit}`;
-    }
-    if (goal.metric === "bodyFat") {
-      return `${value.toFixed(1)}%`;
-    }
-    if (goal.metric === "vo2max") {
-      return `${value.toFixed(1)}`;
-    }
-    if (goal.metric === "ffmi") {
-      return `${value.toFixed(1)}`;
-    }
-    return `${value}`;
-  };
+  // Get status badge configuration
+  const statusConfig = getGoalStatus(goal, projection);
 
-  // Format rate (change per day)
-  const formatRate = (rate: number): string => {
-    const absRate = Math.abs(rate);
-    const sign = rate >= 0 ? "+" : "-"; // Always show sign for clarity
+  // Get trend icon configuration
+  const trendConfig = getTrendConfig(projection);
 
-    if (goal.metric === "time5k" || goal.metric === "time1k") {
-      const secsPerWeek = absRate * 7;
-      return `${sign}${secsPerWeek.toFixed(0)}s/week`;
+  // Render trend icon based on configuration
+  const renderTrendIcon = () => {
+    switch (trendConfig.direction) {
+      case "up":
+        return <TrendingUp className={`h-4 w-4 ${trendConfig.colorClass}`} />;
+      case "down":
+        return <TrendingDown className={`h-4 w-4 ${trendConfig.colorClass}`} />;
+      default:
+        return <Minus className={`h-4 w-4 ${trendConfig.colorClass}`} />;
     }
-    if (goal.metric === "weight" || goal.metric === "leanMass") {
-      const weeklyRate = absRate * 7;
-      const converted =
-        weightUnit === "lbs" ? weeklyRate * 2.20462 : weeklyRate;
-      return `${sign}${converted.toFixed(2)} ${weightUnit}/week`;
-    }
-    if (goal.metric === "bodyFat") {
-      const weeklyRate = absRate * 7;
-      return `${sign}${weeklyRate.toFixed(2)}%/week`;
-    }
-    // Default: show daily rate
-    return `${sign}${absRate.toFixed(2)}/day`;
-  };
-
-  // Determine status badge
-  const getStatusBadge = () => {
-    if (goal.completed) {
-      return <Badge variant="secondary">Completed</Badge>;
-    }
-    if (!projection) {
-      return <Badge variant="outline">Insufficient data</Badge>;
-    }
-    if (projection.progressPercent >= 100) {
-      return <Badge className="bg-green-500">Goal reached!</Badge>;
-    }
-    switch (projection.rateDirection) {
-      case "improving":
-        return goal.targetDate &&
-          projection.projectedDate.getTime() > goal.targetDate ? (
-          <Badge variant="outline">Improving</Badge>
-        ) : (
-          <Badge className="bg-green-500">On track</Badge>
-        );
-      case "stalled":
-        return <Badge className="bg-yellow-500">Stalled</Badge>;
-      case "worsening":
-        return <Badge className="bg-red-500">Off track</Badge>;
-    }
-  };
-
-  // Get trend icon - direction based on rate sign, color based on progress
-  const getTrendIcon = () => {
-    if (!projection || projection.rateDirection === "stalled") {
-      return <Minus className="h-4 w-4 text-muted-foreground" />;
-    }
-
-    const colorClass =
-      projection.rateDirection === "improving"
-        ? "text-green-500"
-        : "text-yellow-500";
-
-    // Icon based on numerical direction (rate > 0 means value increasing)
-    if (projection.rate > 0) {
-      return <TrendingUp className={`h-4 w-4 ${colorClass}`} />;
-    }
-    return <TrendingDown className={`h-4 w-4 ${colorClass}`} />;
-  };
-
-  // Format projected date
-  const formatProjectedDate = () => {
-    if (!projection || projection.daysRemaining === Infinity) {
-      return "N/A";
-    }
-    if (projection.daysRemaining <= 0) {
-      return "Now";
-    }
-    if (projection.daysRemaining > 365) {
-      const years = Math.round(projection.daysRemaining / 365);
-      return `~${years} year${years > 1 ? "s" : ""}`;
-    }
-    return projection.projectedDate.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year:
-        projection.projectedDate.getFullYear() !== new Date().getFullYear()
-          ? "numeric"
-          : undefined,
-    });
   };
 
   return (
@@ -185,7 +87,12 @@ export function GoalCard({
             )}
             <CardTitle className="text-lg">{metricLabel}</CardTitle>
           </div>
-          {getStatusBadge()}
+          <Badge
+            variant={statusConfig.variant}
+            className={statusConfig.colorClass}
+          >
+            {statusConfig.label}
+          </Badge>
         </div>
         {goal.targetDate && (
           <p className="text-sm text-muted-foreground">
@@ -199,7 +106,9 @@ export function GoalCard({
           <div>
             <p className="text-sm text-muted-foreground">Current</p>
             <p className="text-2xl font-bold">
-              {projection ? formatValue(projection.currentValue) : "No data"}
+              {projection
+                ? formatGoalValue(projection.currentValue, formatContext)
+                : "No data"}
             </p>
           </div>
           <div className="text-right">
@@ -207,7 +116,7 @@ export function GoalCard({
             <p
               className={`text-2xl font-bold ${goal.completed ? "line-through" : ""}`}
             >
-              {formatValue(goal.targetValue)}
+              {formatGoalValue(goal.targetValue, formatContext)}
             </p>
           </div>
         </div>
@@ -225,14 +134,19 @@ export function GoalCard({
         {projection && !goal.completed && (
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-1">
-              {getTrendIcon()}
+              {renderTrendIcon()}
               <span className="text-muted-foreground">
-                {formatRate(projection.rate)}
+                {formatGoalRate(projection.rate, formatContext)}
               </span>
             </div>
             <div className="text-right">
               <span className="text-muted-foreground">Est. </span>
-              <span className="font-medium">{formatProjectedDate()}</span>
+              <span className="font-medium">
+                {formatProjectedDate(
+                  projection.daysRemaining,
+                  projection.projectedDate,
+                )}
+              </span>
             </div>
           </div>
         )}

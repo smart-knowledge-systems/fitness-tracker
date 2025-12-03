@@ -50,10 +50,9 @@ export interface LapCalculatorResult {
 
 export const LAP_DISTANCES: Record<string, number> = {
   "400m": 400,
-  "1000m": 1000,
+  "800m": 800,
   "1km": 1000,
   "1mile": 1609.344,
-  "5000m": 5000,
   "5km": 5000,
 };
 

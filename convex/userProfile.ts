@@ -1,12 +1,15 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { auth } from "./auth";
-import { getUserIdOrThrow, getUserProfileOrThrow } from "./helpers";
+import {
+  getUserIdOrThrow,
+  getUserIdOrNull,
+  getUserProfileOrThrow,
+} from "./helpers";
 
 export const get = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await auth.getUserId(ctx);
+    const userId = await getUserIdOrNull(ctx);
     if (!userId) return null;
 
     const profile = await ctx.db

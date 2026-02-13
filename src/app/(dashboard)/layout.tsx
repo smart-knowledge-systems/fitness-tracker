@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuthActions } from "@convex-dev/auth/react";
+import { signOut } from "@/lib/shoo";
 import { useConvexAuth, useQuery, useMutation } from "convex/react";
 import {
   Activity,
@@ -100,14 +100,20 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const { signOut } = useAuthActions();
   const router = useRouter();
   const pathname = usePathname();
 
+  const ensureUser = useMutation(api.users.ensureFromAuth);
   const userProfile = useQuery(api.userProfile.get);
   const updateUnitPreferences = useMutation(
     api.userProfile.updateUnitPreferences,
   );
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      ensureUser().catch(console.error);
+    }
+  }, [isAuthenticated, ensureUser]);
 
   const currentWeightUnit: WeightUnit = userProfile?.weightUnit ?? "kg";
   const currentLengthUnit: LengthUnit = userProfile?.lengthUnit ?? "cm";

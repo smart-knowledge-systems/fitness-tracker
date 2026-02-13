@@ -28,7 +28,7 @@ This is a Next.js 16 fitness tracking application with Convex as the backend.
 
 - **Frontend**: Next.js 16 with App Router, React 19, React Compiler enabled
 - **Backend**: Convex (real-time database and serverless functions)
-- **Auth**: @convex-dev/auth with Password provider
+- **Auth**: @shoojs/react with Google OAuth via Shoo
 - **UI**: shadcn/ui (new-york style), Tailwind CSS v4, Radix primitives
 - **Charts**: Recharts
 

@@ -7,12 +7,6 @@ settings:
 importers:
   .:
     dependencies:
-      "@auth/core":
-        specifier: 0.37.0
-        version: 0.37.0
-      "@convex-dev/auth":
-        specifier: ^0.0.90
-        version: 0.0.90(@auth/core@0.37.0)(convex@1.30.0(react@19.2.1))(react@19.2.1)
       "@hookform/resolvers":
         specifier: ^5.2.2
         version: 5.2.2(react-hook-form@7.68.0(react@19.2.1))
@@ -61,6 +55,9 @@ importers:
       "@radix-ui/react-tooltip":
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.7))(@types/react@19.2.7)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      "@shoojs/react":
+        specifier: ^0.2.0
+        version: 0.2.0(react@19.2.1)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -161,23 +158,6 @@ packages:
         integrity: sha512-9q/yCljni37pkMr4sPrI3G4jqdIk074+iukc5aFJl7kmDCCsiJrbZ6zKxnES1Gwg+i9RcDZwvktl23puGslmvA==,
       }
     hasBin: true
-
-  "@auth/core@0.37.0":
-    resolution:
-      {
-        integrity: sha512-LybAgfFC5dta3Mu3al0UbnzMGVBpZRqLMvvXupQOfETtPNlL7rXgTO13EVRTCdvPqMQrVYjODUDvgVfQM1M3Qg==,
-      }
-    peerDependencies:
-      "@simplewebauthn/browser": ^9.0.1
-      "@simplewebauthn/server": ^9.0.2
-      nodemailer: ^6.8.0
-    peerDependenciesMeta:
-      "@simplewebauthn/browser":
-        optional: true
-      "@simplewebauthn/server":
-        optional: true
-      nodemailer:
-        optional: true
 
   "@babel/code-frame@7.27.1":
     resolution:
@@ -398,20 +378,6 @@ packages:
         integrity: sha512-qQ5m48eI/MFLQ5PxQj4PFaprjyCTLI37ElWMmNs0K8Lk3dVeOdNpB3ks8jc7yM5CDmVC73eMVk/trk3fgmrUpA==,
       }
     engines: { node: ">=6.9.0" }
-
-  "@convex-dev/auth@0.0.90":
-    resolution:
-      {
-        integrity: sha512-aqw88EB042HvnaF4wcf/f/wTocmT2Bus2VDQRuV79cM0+8kORM0ICK/ByZ6XsHgQ9qr6TmidNbXm6QAgndrdpQ==,
-      }
-    hasBin: true
-    peerDependencies:
-      "@auth/core": ^0.37.0
-      convex: ^1.17.0
-      react: ^18.2.0 || ^19.0.0-0
-    peerDependenciesMeta:
-      react:
-        optional: true
 
   "@convex-dev/eslint-plugin@1.0.0":
     resolution:
@@ -860,6 +826,7 @@ packages:
       }
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   "@img/sharp-libvips-linux-arm@1.2.4":
     resolution:
@@ -868,6 +835,7 @@ packages:
       }
     cpu: [arm]
     os: [linux]
+    libc: [glibc]
 
   "@img/sharp-libvips-linux-ppc64@1.2.4":
     resolution:
@@ -876,6 +844,7 @@ packages:
       }
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
 
   "@img/sharp-libvips-linux-riscv64@1.2.4":
     resolution:
@@ -884,6 +853,7 @@ packages:
       }
     cpu: [riscv64]
     os: [linux]
+    libc: [glibc]
 
   "@img/sharp-libvips-linux-s390x@1.2.4":
     resolution:
@@ -892,6 +862,7 @@ packages:
       }
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
 
   "@img/sharp-libvips-linux-x64@1.2.4":
     resolution:
@@ -900,6 +871,7 @@ packages:
       }
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   "@img/sharp-libvips-linuxmusl-arm64@1.2.4":
     resolution:
@@ -908,6 +880,7 @@ packages:
       }
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   "@img/sharp-libvips-linuxmusl-x64@1.2.4":
     resolution:
@@ -916,6 +889,7 @@ packages:
       }
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   "@img/sharp-linux-arm64@0.34.5":
     resolution:
@@ -925,6 +899,7 @@ packages:
     engines: { node: ^18.17.0 || ^20.3.0 || >=21.0.0 }
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   "@img/sharp-linux-arm@0.34.5":
     resolution:
@@ -934,6 +909,7 @@ packages:
     engines: { node: ^18.17.0 || ^20.3.0 || >=21.0.0 }
     cpu: [arm]
     os: [linux]
+    libc: [glibc]
 
   "@img/sharp-linux-ppc64@0.34.5":
     resolution:
@@ -943,6 +919,7 @@ packages:
     engines: { node: ^18.17.0 || ^20.3.0 || >=21.0.0 }
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
 
   "@img/sharp-linux-riscv64@0.34.5":
     resolution:
@@ -952,6 +929,7 @@ packages:
     engines: { node: ^18.17.0 || ^20.3.0 || >=21.0.0 }
     cpu: [riscv64]
     os: [linux]
+    libc: [glibc]
 
   "@img/sharp-linux-s390x@0.34.5":
     resolution:
@@ -961,6 +939,7 @@ packages:
     engines: { node: ^18.17.0 || ^20.3.0 || >=21.0.0 }
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
 
   "@img/sharp-linux-x64@0.34.5":
     resolution:
@@ -970,6 +949,7 @@ packages:
     engines: { node: ^18.17.0 || ^20.3.0 || >=21.0.0 }
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   "@img/sharp-linuxmusl-arm64@0.34.5":
     resolution:
@@ -979,6 +959,7 @@ packages:
     engines: { node: ^18.17.0 || ^20.3.0 || >=21.0.0 }
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   "@img/sharp-linuxmusl-x64@0.34.5":
     resolution:
@@ -988,6 +969,7 @@ packages:
     engines: { node: ^18.17.0 || ^20.3.0 || >=21.0.0 }
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   "@img/sharp-wasm32@0.34.5":
     resolution:
@@ -1183,6 +1165,7 @@ packages:
     engines: { node: ">= 10" }
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   "@next/swc-linux-arm64-musl@16.0.7":
     resolution:
@@ -1192,6 +1175,7 @@ packages:
     engines: { node: ">= 10" }
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   "@next/swc-linux-x64-gnu@16.0.7":
     resolution:
@@ -1201,6 +1185,7 @@ packages:
     engines: { node: ">= 10" }
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   "@next/swc-linux-x64-musl@16.0.7":
     resolution:
@@ -1210,6 +1195,7 @@ packages:
     engines: { node: ">= 10" }
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   "@next/swc-win32-arm64-msvc@16.0.7":
     resolution:
@@ -1294,36 +1280,6 @@ packages:
     resolution:
       {
         integrity: sha512-U69T3ItWHvLwGg5eJ0n3I62nWuE6ilHlmz7zM0npLBRvPRd7e6NYmg54vvRtP5mZG7kZqZCFVdsTWo7BPtBujg==,
-      }
-
-  "@oslojs/asn1@1.0.0":
-    resolution:
-      {
-        integrity: sha512-zw/wn0sj0j0QKbIXfIlnEcTviaCzYOY3V5rAyjR6YtOByFtJiT574+8p9Wlach0lZH9fddD4yb9laEAIl4vXQA==,
-      }
-
-  "@oslojs/binary@1.0.0":
-    resolution:
-      {
-        integrity: sha512-9RCU6OwXU6p67H4NODbuxv2S3eenuQ4/WFLrsq+K/k682xrznH5EVWA7N4VFk9VYVcbFtKqur5YQQZc0ySGhsQ==,
-      }
-
-  "@oslojs/crypto@1.0.1":
-    resolution:
-      {
-        integrity: sha512-7n08G8nWjAr/Yu3vu9zzrd0L9XnrJfpMioQcvCMxBIiF5orECHe5/3J0jmXRVvgfqMm/+4oxlQ+Sq39COYLcNQ==,
-      }
-
-  "@oslojs/encoding@1.1.0":
-    resolution:
-      {
-        integrity: sha512-70wQhgYmndg4GCPxPPxPGevRKqTIJ2Nh4OkiMWmDAVYsTQ+Ta7Sq+rPevXyXGdzr30/qZBnyOalCszoMxlyldQ==,
-      }
-
-  "@panva/hkdf@1.2.1":
-    resolution:
-      {
-        integrity: sha512-6oclG6Y3PiDFcoyk8srjLfVKyMfVCKJ27JwNPViuXziFpmdz+MZnZN/aKY0JGXgYuO/VghU0jcOAZgWXZ1Dmrw==,
       }
 
   "@radix-ui/number@1.1.1":
@@ -1976,6 +1932,26 @@ packages:
         integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==,
       }
 
+  "@shoojs/auth@0.2.0":
+    resolution:
+      {
+        integrity: sha512-2z7OyL0agy+iWl4Dd7LebRQqOtYNSJQFMqCMH+BdI4WSlfqyKRQNh/39FLWcnnnGMAo/MlMmLE1VZE/AoM9g6w==,
+      }
+
+  "@shoojs/react@0.2.0":
+    resolution:
+      {
+        integrity: sha512-/jg1PcVX2iuDRXs5M3Coe0dCOF5UiuXkEObTvo134vpYrt/t3uMJhdRNi0/1RCZFh/8Nzr7aGtJraHq9H7Mv7Q==,
+      }
+    peerDependencies:
+      react: ">=18"
+
+  "@shoojs/types@0.2.0":
+    resolution:
+      {
+        integrity: sha512-b4PP+rsf96MYADTY9bEsvnlUlksOoUfM3X6OTB6/kaBWo+US0/Rx/4iJ3Sg786kTj9F6DvF7rxonsuql4nXY0A==,
+      }
+
   "@sindresorhus/merge-streams@4.0.0":
     resolution:
       {
@@ -2054,6 +2030,7 @@ packages:
     engines: { node: ">= 10" }
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   "@tailwindcss/oxide-linux-arm64-musl@4.1.17":
     resolution:
@@ -2063,6 +2040,7 @@ packages:
     engines: { node: ">= 10" }
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   "@tailwindcss/oxide-linux-x64-gnu@4.1.17":
     resolution:
@@ -2072,6 +2050,7 @@ packages:
     engines: { node: ">= 10" }
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   "@tailwindcss/oxide-linux-x64-musl@4.1.17":
     resolution:
@@ -2081,6 +2060,7 @@ packages:
     engines: { node: ">= 10" }
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   "@tailwindcss/oxide-wasm32-wasi@4.1.17":
     resolution:
@@ -2138,12 +2118,6 @@ packages:
     resolution:
       {
         integrity: sha512-9tTaPJLSiejZKx+Bmog4uSubteqTvFrVrURwkmHixBo0G4seD0zUxp98E1DzUBJxLQ3NPwXrGKDiVjwx/DpPsg==,
-      }
-
-  "@types/cookie@0.6.0":
-    resolution:
-      {
-        integrity: sha512-4Kh9a6B2bQciAhf7FSuMRRkUWecJgJu9nPnx3yzpsfXX/c50REIqpHY4C82bXP90qrLtXtkDxTZosYO3UpOwlA==,
       }
 
   "@types/d3-array@3.2.2":
@@ -2454,6 +2428,7 @@ packages:
       }
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   "@unrs/resolver-binding-linux-arm64-musl@1.11.1":
     resolution:
@@ -2462,6 +2437,7 @@ packages:
       }
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   "@unrs/resolver-binding-linux-ppc64-gnu@1.11.1":
     resolution:
@@ -2470,6 +2446,7 @@ packages:
       }
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
 
   "@unrs/resolver-binding-linux-riscv64-gnu@1.11.1":
     resolution:
@@ -2478,6 +2455,7 @@ packages:
       }
     cpu: [riscv64]
     os: [linux]
+    libc: [glibc]
 
   "@unrs/resolver-binding-linux-riscv64-musl@1.11.1":
     resolution:
@@ -2486,6 +2464,7 @@ packages:
       }
     cpu: [riscv64]
     os: [linux]
+    libc: [musl]
 
   "@unrs/resolver-binding-linux-s390x-gnu@1.11.1":
     resolution:
@@ -2494,6 +2473,7 @@ packages:
       }
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
 
   "@unrs/resolver-binding-linux-x64-gnu@1.11.1":
     resolution:
@@ -2502,6 +2482,7 @@ packages:
       }
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   "@unrs/resolver-binding-linux-x64-musl@1.11.1":
     resolution:
@@ -2510,6 +2491,7 @@ packages:
       }
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   "@unrs/resolver-binding-wasm32-wasi@1.11.1":
     resolution:
@@ -2980,13 +2962,6 @@ packages:
         integrity: sha512-D76uU73ulSXrD1UXF4KE2TMxVVwhsnCgfAyTg9k8P6KGZjlXKrOLe4dJQKI3Bxi5wjesZoFXJWElNWBjPZMbhg==,
       }
     engines: { node: ">=6.6.0" }
-
-  cookie@0.7.1:
-    resolution:
-      {
-        integrity: sha512-6DnInpx7SJ2AK3+CTUE/ZM0vWTUboZCegxhC2xiIydHR9jNuTAASBrfEpHhiGOZw/nX51bHt6YQl8jsGo4y/0w==,
-      }
-    engines: { node: ">= 0.6" }
 
   cookie@0.7.2:
     resolution:
@@ -4266,13 +4241,6 @@ packages:
       }
     engines: { node: ">= 0.4" }
 
-  is-network-error@1.3.0:
-    resolution:
-      {
-        integrity: sha512-6oIwpsgRfnDiyEDLMay/GqCl3HoAtH5+RUKW29gYkL0QA+ipzpDLA16yQs7/RHCSu+BwgbJaOUqa4A99qNVQVw==,
-      }
-    engines: { node: ">=16" }
-
   is-node-process@1.2.0:
     resolution:
       {
@@ -4444,12 +4412,6 @@ packages:
       }
     hasBin: true
 
-  jose@5.10.0:
-    resolution:
-      {
-        integrity: sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg==,
-      }
-
   jose@6.1.3:
     resolution:
       {
@@ -4534,13 +4496,6 @@ packages:
         integrity: sha512-ZZow9HBI5O6EPgSJLUb8n2NKgmVWTwCvHGwFuJlMjvLFqlGG6pjirPhtdsseaLZjSibD8eegzmYpUZwoIlj2cQ==,
       }
     engines: { node: ">=4.0" }
-
-  jwt-decode@4.0.0:
-    resolution:
-      {
-        integrity: sha512-+KJGIyHgkGuIq3IEBNftfhW/LfWhXUIY6OmyVWjliu5KH1y0fw7VQ8YndE2O4qZdMSd9SqbnC8GOcZEy0Om7sA==,
-      }
-    engines: { node: ">=18" }
 
   keyv@4.5.4:
     resolution:
@@ -4635,6 +4590,7 @@ packages:
     engines: { node: ">= 12.0.0" }
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   lightningcss-linux-arm64-musl@1.30.2:
     resolution:
@@ -4644,6 +4600,7 @@ packages:
     engines: { node: ">= 12.0.0" }
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   lightningcss-linux-x64-gnu@1.30.2:
     resolution:
@@ -4653,6 +4610,7 @@ packages:
     engines: { node: ">= 12.0.0" }
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   lightningcss-linux-x64-musl@1.30.2:
     resolution:
@@ -4662,6 +4620,7 @@ packages:
     engines: { node: ">= 12.0.0" }
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   lightningcss-win32-arm64-msvc@1.30.2:
     resolution:
@@ -4732,13 +4691,6 @@ packages:
       {
         integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==,
       }
-
-  lucia@3.2.2:
-    resolution:
-      {
-        integrity: sha512-P1FlFBGCMPMXu+EGdVD9W4Mjm0DqsusmKgO7Xc33mI5X1bklmsQb0hfzPhXomQr9waWIBDsiOjvr1e6BTaUqpA==,
-      }
-    deprecated: This package has been deprecated. Please see https://lucia-auth.com/lucia-v3/migrate.
 
   lucide-react@0.555.0:
     resolution:
@@ -4971,12 +4923,6 @@ packages:
         integrity: sha512-9qny7Z9DsQU8Ou39ERsPU4OZQlSTP47ShQzuKZ6PRXpYLtIFgl/DEBYEXKlvcEa+9tHVcK8CF81Y2V72qaZhWA==,
       }
     engines: { node: ">=18" }
-
-  oauth4webapi@3.8.3:
-    resolution:
-      {
-        integrity: sha512-pQ5BsX3QRTgnt5HxgHwgunIRaDXBdkT23tf8dfzmtTIL2LTpdmxgbpbBm0VgFWAIDlezQvQCTgnVIUmHupXHxw==,
-      }
 
   object-assign@4.1.1:
     resolution:
@@ -5236,20 +5182,6 @@ packages:
       }
     engines: { node: ^10 || ^12 || >=14 }
 
-  preact-render-to-string@5.2.3:
-    resolution:
-      {
-        integrity: sha512-aPDxUn5o3GhWdtJtW0svRC2SS/l8D9MAgo2+AWml+BhDImb27ALf04Q2d+AHqUUOc6RdSXFIBVa2gxzgMKgtZA==,
-      }
-    peerDependencies:
-      preact: ">=10"
-
-  preact@10.11.3:
-    resolution:
-      {
-        integrity: sha512-eY93IVpod/zG3uMF22Unl8h9KkrcKIRs2EGar8hwLZZDU1lkjph303V9HZBwufh2s736U6VXuhD109LYqPoffg==,
-      }
-
   prelude-ls@1.2.1:
     resolution:
       {
@@ -5264,12 +5196,6 @@ packages:
       }
     engines: { node: ">=14" }
     hasBin: true
-
-  pretty-format@3.8.0:
-    resolution:
-      {
-        integrity: sha512-WuxUnVtlWL1OfZFQFuqvnvs6MiAGk9UNsBostyBOB0Is9wb5uRESevA6rnl/rkksXaGX3GzZhPup5d6Vp1nFew==,
-      }
 
   pretty-ms@9.3.0:
     resolution:
@@ -5607,12 +5533,6 @@ packages:
         integrity: sha512-61g9pCh0Vnh7IutZjtLGGpTA355+OPn2TyDv/6ivP2h/AdAVX9azsoxmg2/M6nZeQZNYBEwIcsne1mJd9oQItQ==,
       }
     engines: { node: ">= 18" }
-
-  server-only@0.0.1:
-    resolution:
-      {
-        integrity: sha512-qepMx2JxAa5jjfzxG79yPPq+8BuFToHd1hm7kI+Z4zAq1ftQiP7HcxMhDDItrbtwVeLg/cY2JnKnrcFkmiswNA==,
-      }
 
   set-function-length@1.2.2:
     resolution:
@@ -6366,16 +6286,6 @@ snapshots:
       package-manager-detector: 1.6.0
       tinyexec: 1.0.2
 
-  "@auth/core@0.37.0":
-    dependencies:
-      "@panva/hkdf": 1.2.1
-      "@types/cookie": 0.6.0
-      cookie: 0.7.1
-      jose: 5.10.0
-      oauth4webapi: 3.8.3
-      preact: 10.11.3
-      preact-render-to-string: 5.2.3(preact@10.11.3)
-
   "@babel/code-frame@7.27.1":
     dependencies:
       "@babel/helper-validator-identifier": 7.28.5
@@ -6563,23 +6473,6 @@ snapshots:
     dependencies:
       "@babel/helper-string-parser": 7.27.1
       "@babel/helper-validator-identifier": 7.28.5
-
-  "@convex-dev/auth@0.0.90(@auth/core@0.37.0)(convex@1.30.0(react@19.2.1))(react@19.2.1)":
-    dependencies:
-      "@auth/core": 0.37.0
-      "@oslojs/crypto": 1.0.1
-      "@oslojs/encoding": 1.1.0
-      convex: 1.30.0(react@19.2.1)
-      cookie: 1.1.1
-      is-network-error: 1.3.0
-      jose: 5.10.0
-      jwt-decode: 4.0.0
-      lucia: 3.2.2
-      oauth4webapi: 3.8.3
-      path-to-regexp: 6.3.0
-      server-only: 0.0.1
-    optionalDependencies:
-      react: 19.2.1
 
   "@convex-dev/eslint-plugin@1.0.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3)":
     dependencies:
@@ -7022,21 +6915,6 @@ snapshots:
       outvariant: 1.4.3
 
   "@open-draft/until@2.1.0": {}
-
-  "@oslojs/asn1@1.0.0":
-    dependencies:
-      "@oslojs/binary": 1.0.0
-
-  "@oslojs/binary@1.0.0": {}
-
-  "@oslojs/crypto@1.0.1":
-    dependencies:
-      "@oslojs/asn1": 1.0.0
-      "@oslojs/binary": 1.0.0
-
-  "@oslojs/encoding@1.1.0": {}
-
-  "@panva/hkdf@1.2.1": {}
 
   "@radix-ui/number@1.1.1": {}
 
@@ -7555,6 +7433,18 @@ snapshots:
 
   "@sec-ant/readable-stream@0.4.1": {}
 
+  "@shoojs/auth@0.2.0":
+    dependencies:
+      "@shoojs/types": 0.2.0
+
+  "@shoojs/react@0.2.0(react@19.2.1)":
+    dependencies:
+      "@shoojs/auth": 0.2.0
+      "@shoojs/types": 0.2.0
+      react: 19.2.1
+
+  "@shoojs/types@0.2.0": {}
+
   "@sindresorhus/merge-streams@4.0.0": {}
 
   "@standard-schema/utils@0.3.0": {}
@@ -7642,8 +7532,6 @@ snapshots:
     dependencies:
       tslib: 2.8.1
     optional: true
-
-  "@types/cookie@0.6.0": {}
 
   "@types/d3-array@3.2.2": {}
 
@@ -8147,8 +8035,6 @@ snapshots:
       react: 19.2.1
 
   cookie-signature@1.2.2: {}
-
-  cookie@0.7.1: {}
 
   cookie@0.7.2: {}
 
@@ -9066,8 +8952,6 @@ snapshots:
 
   is-negative-zero@2.0.3: {}
 
-  is-network-error@1.3.0: {}
-
   is-node-process@1.2.0: {}
 
   is-number-object@1.1.1:
@@ -9149,8 +9033,6 @@ snapshots:
 
   jiti@2.6.1: {}
 
-  jose@5.10.0: {}
-
   jose@6.1.3: {}
 
   js-tokens@4.0.0: {}
@@ -9189,8 +9071,6 @@ snapshots:
       array.prototype.flat: 1.3.3
       object.assign: 4.1.7
       object.values: 1.2.1
-
-  jwt-decode@4.0.0: {}
 
   keyv@4.5.4:
     dependencies:
@@ -9282,11 +9162,6 @@ snapshots:
   lru-cache@5.1.1:
     dependencies:
       yallist: 3.1.1
-
-  lucia@3.2.2:
-    dependencies:
-      "@oslojs/crypto": 1.0.1
-      "@oslojs/encoding": 1.1.0
 
   lucide-react@0.555.0(react@19.2.1):
     dependencies:
@@ -9419,8 +9294,6 @@ snapshots:
     dependencies:
       path-key: 4.0.0
       unicorn-magic: 0.3.0
-
-  oauth4webapi@3.8.3: {}
 
   object-assign@4.1.1: {}
 
@@ -9572,18 +9445,9 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  preact-render-to-string@5.2.3(preact@10.11.3):
-    dependencies:
-      preact: 10.11.3
-      pretty-format: 3.8.0
-
-  preact@10.11.3: {}
-
   prelude-ls@1.2.1: {}
 
   prettier@3.7.4: {}
-
-  pretty-format@3.8.0: {}
 
   pretty-ms@9.3.0:
     dependencies:
@@ -9827,8 +9691,6 @@ snapshots:
       send: 1.2.0
     transitivePeerDependencies:
       - supports-color
-
-  server-only@0.0.1: {}
 
   set-function-length@1.2.2:
     dependencies:

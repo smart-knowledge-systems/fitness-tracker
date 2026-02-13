@@ -3,7 +3,7 @@
 import { useConvexAuth } from "convex/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import Link from "next/link";
+import { signIn } from "@/lib/shoo";
 import {
   Activity,
   Target,
@@ -79,12 +79,10 @@ function Header() {
       </div>
       <div className="flex items-center gap-2">
         <ModeToggle />
-        <Button variant="ghost" asChild>
-          <Link href="/sign-in">Sign In</Link>
+        <Button variant="ghost" onClick={() => signIn()}>
+          Sign In
         </Button>
-        <Button asChild>
-          <Link href="/sign-up">Get Started</Link>
-        </Button>
+        <Button onClick={() => signIn()}>Get Started</Button>
       </div>
     </header>
   );
@@ -105,11 +103,11 @@ function HeroSection() {
           powerful calculators and analytics. Your complete fitness companion.
         </p>
         <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
-          <Button size="lg" asChild>
-            <Link href="/sign-up">Get Started Free</Link>
+          <Button size="lg" onClick={() => signIn()}>
+            Get Started Free
           </Button>
-          <Button size="lg" variant="outline" asChild>
-            <Link href="/sign-in">Sign In</Link>
+          <Button size="lg" variant="outline" onClick={() => signIn()}>
+            Sign In
           </Button>
         </div>
       </div>

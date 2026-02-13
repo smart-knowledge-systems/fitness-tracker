@@ -1,7 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { auth } from "./auth";
-import { getUserIdOrThrow } from "./helpers";
+import { getUserIdOrThrow, getUserIdOrNull } from "./helpers";
 import { measurementFields, optionalMeasurementFields } from "./validators";
 
 export const create = mutation({
@@ -55,7 +54,7 @@ export const list = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
+    const userId = await getUserIdOrNull(ctx);
     if (!userId) return [];
 
     const limit = args.limit ?? 50;
@@ -73,7 +72,7 @@ export const list = query({
 export const getLatest = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await auth.getUserId(ctx);
+    const userId = await getUserIdOrNull(ctx);
     if (!userId) return null;
 
     const measurement = await ctx.db
@@ -92,7 +91,7 @@ export const getByDateRange = query({
     endDate: v.number(),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
+    const userId = await getUserIdOrNull(ctx);
     if (!userId) return [];
 
     const measurements = await ctx.db
@@ -113,7 +112,7 @@ export const getByDateRange = query({
 export const getById = query({
   args: { id: v.id("measurements") },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
+    const userId = await getUserIdOrNull(ctx);
     if (!userId) return null;
 
     const measurement = await ctx.db.get(args.id);

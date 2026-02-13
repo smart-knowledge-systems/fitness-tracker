@@ -64,11 +64,10 @@ export default function ProgressPage() {
     filterMeasurements,
   } = useDateRangeFilter();
 
-  // Filter measurements and compute domain (handle "all" range specially)
-  const filteredMeasurements = useMemo(() => {
-    if (!measurements) return [];
-    return filterMeasurements(measurements);
-  }, [measurements, filterMeasurements]);
+  // Filter measurements
+  const filteredMeasurements = measurements
+    ? filterMeasurements(measurements)
+    : [];
 
   // Calculate domain - use measurements-based domain for "all" range
   const { domainStart, domainEnd } = useMemo(() => {

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { auth } from "./auth";
+import { getUserIdOrThrow } from "./helpers";
 
 export const create = mutation({
   args: {
@@ -11,8 +12,7 @@ export const create = mutation({
     startValue: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getUserIdOrThrow(ctx);
 
     return await ctx.db.insert("goals", {
       userId,
@@ -39,8 +39,7 @@ export const update = mutation({
     startValue: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getUserIdOrThrow(ctx);
 
     const { id, ...updates } = args;
     const goal = await ctx.db.get(id);
@@ -57,8 +56,7 @@ export const update = mutation({
 export const complete = mutation({
   args: { id: v.id("goals") },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getUserIdOrThrow(ctx);
 
     const goal = await ctx.db.get(args.id);
     if (!goal || goal.userId !== userId) {
@@ -72,8 +70,7 @@ export const complete = mutation({
 export const setChartVisibility = mutation({
   args: { id: v.id("goals"), isVisible: v.boolean() },
   handler: async (ctx, { id, isVisible }) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getUserIdOrThrow(ctx);
 
     const goal = await ctx.db.get(id);
     if (!goal || goal.userId !== userId) {
@@ -87,8 +84,7 @@ export const setChartVisibility = mutation({
 export const remove = mutation({
   args: { id: v.id("goals") },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getUserIdOrThrow(ctx);
 
     const goal = await ctx.db.get(args.id);
     if (!goal || goal.userId !== userId) {

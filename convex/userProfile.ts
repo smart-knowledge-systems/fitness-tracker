@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { auth } from "./auth";
+import { getUserIdOrThrow } from "./helpers";
 
 export const get = query({
   args: {},
@@ -27,8 +28,7 @@ export const upsert = mutation({
     lengthUnit: v.optional(v.union(v.literal("cm"), v.literal("in"))),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getUserIdOrThrow(ctx);
 
     const existing = await ctx.db
       .query("userProfiles")
@@ -53,8 +53,7 @@ export const updateUnitPreferences = mutation({
     lengthUnit: v.optional(v.union(v.literal("cm"), v.literal("in"))),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getUserIdOrThrow(ctx);
 
     const existing = await ctx.db
       .query("userProfiles")
@@ -73,8 +72,7 @@ export const updateTheme = mutation({
     theme: v.union(v.literal("light"), v.literal("dark"), v.literal("system")),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getUserIdOrThrow(ctx);
 
     const existing = await ctx.db
       .query("userProfiles")

@@ -2,26 +2,22 @@
 
 import { SignInForm } from "@/components/auth/SignInForm";
 import { useConvexAuth } from "convex/react";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { redirect } from "next/navigation";
 import { Activity } from "lucide-react";
 
 export default function SignInPage() {
   const { isAuthenticated, isLoading } = useConvexAuth();
-  const router = useRouter();
 
-  useEffect(() => {
-    if (!isLoading && isAuthenticated) {
-      router.push("/");
-    }
-  }, [isAuthenticated, isLoading, router]);
-
-  if (isLoading || isAuthenticated) {
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
       </div>
     );
+  }
+
+  if (isAuthenticated) {
+    redirect("/");
   }
 
   return (

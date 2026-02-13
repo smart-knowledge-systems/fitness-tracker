@@ -99,7 +99,7 @@ function StatCard({
 }
 
 export default function DashboardPage() {
-  const measurements = useQuery(api.measurements.list, { limit: 10 });
+  const measurements = useQuery(api.measurements.list, { limit: 5 });
   const userProfile = useQuery(api.userProfile.get);
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -218,7 +218,7 @@ export default function DashboardPage() {
               </p>
             ) : (
               <div className="space-y-2">
-                {measurements.slice(0, 5).map((m) => (
+                {measurements.map((m) => (
                   <div
                     key={m._id}
                     className="flex items-center justify-between rounded-lg border p-3"

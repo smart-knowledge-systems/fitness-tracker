@@ -41,6 +41,13 @@ import {
 } from "@/lib/unitConversion";
 import type { Id } from "@/convex/_generated/dataModel";
 
+function formatTime(seconds: number | undefined) {
+  if (!seconds) return null;
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
 export default function MeasurementsPage() {
   const measurements = useQuery(api.measurements.list, { limit: 100 });
   const userProfile = useQuery(api.userProfile.get);
@@ -109,13 +116,6 @@ export default function MeasurementsPage() {
     },
     [userProfile, age],
   );
-
-  const formatTime = (seconds: number | undefined) => {
-    if (!seconds) return null;
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
 
   return (
     <div className="space-y-6">

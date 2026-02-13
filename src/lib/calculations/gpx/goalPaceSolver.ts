@@ -73,9 +73,6 @@ export class GoalPaceSolver {
   ): SolverResult {
     console.log(`Solving for goal time: ${formatTime(goalTimeSeconds)}`);
 
-    // Reset downhill adjustments tracking for new calculation
-    this.downhillAdjustments = [];
-
     const totalDistance = gpxParser.totalDistance;
 
     // Initial guess: simple average pace
@@ -90,11 +87,13 @@ export class GoalPaceSolver {
 
     while (iteration < this.maxIterations) {
       // Calculate predicted time with current base pace
-      const predictedTime = this.calculateTotalTime(
+      const timeResult = this.calculateTotalTimeWithAdjustments(
         gpxParser,
         basePaceMs,
         segmentLength,
       );
+      const predictedTime = timeResult.totalTime;
+
       const error = predictedTime - goalTimeSeconds;
 
       convergenceHistory.push({
@@ -147,23 +146,76 @@ export class GoalPaceSolver {
       basePaceMs = bestPace;
     }
 
-    const finalPredictedTime = this.calculateTotalTime(
+    const finalResult = this.calculateTotalTimeWithAdjustments(
       gpxParser,
       basePaceMs,
       segmentLength,
     );
 
+    // Store on instance for lapCalculator access
+    this.downhillAdjustments = finalResult.adjustments;
+
     return {
       basePaceMs: basePaceMs,
       basePaceMinPerKm: this.speedToPace(basePaceMs),
-      finalError: finalPredictedTime - goalTimeSeconds,
+      finalError: finalResult.totalTime - goalTimeSeconds,
       converged:
-        Math.abs(finalPredictedTime - goalTimeSeconds) <= this.tolerance,
+        Math.abs(finalResult.totalTime - goalTimeSeconds) <= this.tolerance,
       iterations: iteration,
       convergenceHistory: convergenceHistory,
-      predictedTime: finalPredictedTime,
-      downhillAdjustments: this.downhillAdjustments,
+      predictedTime: finalResult.totalTime,
+      downhillAdjustments: finalResult.adjustments,
     };
+  }
+
+  /**
+   * Calculate total time for a route given a base pace, collecting downhill adjustments.
+   */
+  private calculateTotalTimeWithAdjustments(
+    gpxParser: GPXParser,
+    basePaceMs: number,
+    segmentLength: number,
+  ): { totalTime: number; adjustments: DownhillAdjustment[] } {
+    let totalTime = 0;
+    let currentDistance = 0;
+    const adjustments: DownhillAdjustment[] = [];
+
+    while (currentDistance < gpxParser.totalDistance) {
+      const segmentEnd = Math.min(
+        currentDistance + segmentLength,
+        gpxParser.totalDistance,
+      );
+      const actualSegmentLength = segmentEnd - currentDistance;
+
+      if (actualSegmentLength <= 0) break;
+
+      const averageGrade = gpxParser.getAverageGrade(
+        currentDistance,
+        segmentEnd,
+      );
+      const averageElevation = gpxParser.getAverageElevation(
+        currentDistance,
+        segmentEnd,
+      );
+
+      const result = this.applyGAPAdjustment(
+        basePaceMs,
+        averageGrade,
+        averageElevation,
+        currentDistance,
+        segmentEnd,
+      );
+
+      totalTime += actualSegmentLength / result.speed;
+
+      if (result.adjustment) {
+        adjustments.push(result.adjustment);
+      }
+
+      currentDistance = segmentEnd;
+    }
+
+    return { totalTime, adjustments };
   }
 
   /**
@@ -178,46 +230,11 @@ export class GoalPaceSolver {
     basePaceMs: number,
     segmentLength: number = 50,
   ): number {
-    let totalTime = 0;
-    let currentDistance = 0;
-
-    // Calculate time for each segment
-    while (currentDistance < gpxParser.totalDistance) {
-      const segmentEnd = Math.min(
-        currentDistance + segmentLength,
-        gpxParser.totalDistance,
-      );
-      const actualSegmentLength = segmentEnd - currentDistance;
-
-      if (actualSegmentLength <= 0) break;
-
-      // Get average grade and elevation for this segment
-      const averageGrade = gpxParser.getAverageGrade(
-        currentDistance,
-        segmentEnd,
-      );
-      const averageElevation = gpxParser.getAverageElevation(
-        currentDistance,
-        segmentEnd,
-      );
-
-      // Apply GAP and altitude adjustments to get actual pace for this segment
-      const adjustedSpeed = this.applyGAPAdjustment(
-        basePaceMs,
-        averageGrade,
-        averageElevation,
-        currentDistance,
-        segmentEnd,
-      );
-
-      // Calculate time for this segment
-      const segmentTime = actualSegmentLength / adjustedSpeed;
-      totalTime += segmentTime;
-
-      currentDistance = segmentEnd;
-    }
-
-    return totalTime;
+    return this.calculateTotalTimeWithAdjustments(
+      gpxParser,
+      basePaceMs,
+      segmentLength,
+    ).totalTime;
   }
 
   /**
@@ -227,7 +244,7 @@ export class GoalPaceSolver {
    * @param segmentElevation - Average elevation of the segment in meters
    * @param segmentStart - Start distance of segment for tracking (meters)
    * @param segmentEnd - End distance of segment for tracking (meters)
-   * @returns Adjusted speed in m/s
+   * @returns Adjusted speed and optional downhill adjustment record
    */
   applyGAPAdjustment(
     basePaceMs: number,
@@ -235,11 +252,10 @@ export class GoalPaceSolver {
     segmentElevation: number,
     segmentStart: number | null = null,
     segmentEnd: number | null = null,
-  ): number {
+  ): { speed: number; adjustment: DownhillAdjustment | null } {
     // Calculate expected energetic cost for flat ground at base pace
     let flatCr = lookupSpeed(basePaceMs, "energy_j_kg_m");
     if (isNaN(flatCr)) {
-      // If outside lookup range, use approximate calculation
       flatCr = 4.0; // Reasonable default J/kg/m
     }
 
@@ -263,24 +279,24 @@ export class GoalPaceSolver {
     }
 
     // Apply steep downhill speed limitations
+    let adjustment: DownhillAdjustment | null = null;
     if (grade < -0.08) {
       const originalSpeed = actualSpeed;
       actualSpeed = this.applyDownhillSpeedCap(actualSpeed, basePaceMs, grade);
 
-      // Track this adjustment if segment boundaries are provided and speed was actually capped
       if (
         segmentStart !== null &&
         segmentEnd !== null &&
         actualSpeed < originalSpeed
       ) {
-        this.downhillAdjustments.push({
+        adjustment = {
           startDistance: segmentStart,
           endDistance: segmentEnd,
           grade: grade,
           theoreticalSpeed: originalSpeed,
           actualSpeed: actualSpeed,
           speedReduction: ((originalSpeed - actualSpeed) / originalSpeed) * 100,
-        });
+        };
       }
     }
 
@@ -291,7 +307,7 @@ export class GoalPaceSolver {
     );
     actualSpeed = actualSpeed / altitudePenalty;
 
-    return actualSpeed;
+    return { speed: actualSpeed, adjustment };
   }
 
   /**

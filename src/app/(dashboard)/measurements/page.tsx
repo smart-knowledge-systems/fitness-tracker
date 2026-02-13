@@ -32,7 +32,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Trash2, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { AddMeasurementDialog } from "@/components/measurements";
-import { averageBodyFat } from "@/lib/calculations";
+import { weightedAverageBodyFat } from "@/lib/calculations";
 import {
   convertWeightForDisplay,
   convertLengthForDisplay,
@@ -97,7 +97,7 @@ export default function MeasurementsPage() {
     (measurement: NonNullable<typeof measurements>[0]) => {
       if (!profileSex || !profileHeight) return null;
 
-      const result = averageBodyFat(
+      const result = weightedAverageBodyFat(
         {
           chest: measurement.skinfoldChest,
           axilla: measurement.skinfoldAxilla,
@@ -118,7 +118,7 @@ export default function MeasurementsPage() {
         profileSex,
       );
 
-      return result.average;
+      return result.weighted;
     },
     [profileSex, profileHeight, age],
   );

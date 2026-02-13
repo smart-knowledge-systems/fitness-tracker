@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { WeightUnit, LengthUnit } from "@/lib/unitConversion";
@@ -20,39 +20,31 @@ interface UseUnitPreferencesReturn {
 
 /**
  * Hook for managing weight/length unit preferences.
- * Initializes from user profile and tracks changes.
+ * Derives defaults from user profile; local overrides track user changes.
  */
 export function useUnitPreferences(): UseUnitPreferencesReturn {
   const userProfile = useQuery(api.userProfile.get);
-  const hasInitialized = useRef(false);
 
-  // Initialize with defaults, will be updated when profile loads
-  const [weightUnit, setWeightUnit] = useState<WeightUnit>("kg");
-  const [lengthUnit, setLengthUnit] = useState<LengthUnit>("cm");
+  // Derive defaults from profile. Until profile loads, use kg/cm.
+  const profileWeightUnit = userProfile?.weightUnit ?? "kg";
+  const profileLengthUnit = userProfile?.lengthUnit ?? "cm";
+
+  // Local overrides — null means "use profile default"
+  const [weightOverride, setWeightOverride] = useState<WeightUnit | null>(null);
+  const [lengthOverride, setLengthOverride] = useState<LengthUnit | null>(null);
   const [saveUnitsAsDefault, setSaveUnitsAsDefault] = useState(false);
 
-  // Initialize units from user profile (only once when profile first loads)
-  useEffect(() => {
-    if (userProfile && !hasInitialized.current) {
-      hasInitialized.current = true;
-      // Use requestAnimationFrame to defer state updates
-      requestAnimationFrame(() => {
-        setWeightUnit(userProfile.weightUnit ?? "kg");
-        setLengthUnit(userProfile.lengthUnit ?? "cm");
-      });
-    }
-  }, [userProfile]);
+  const weightUnit = weightOverride ?? profileWeightUnit;
+  const lengthUnit = lengthOverride ?? profileLengthUnit;
 
-  // Check if units differ from profile defaults
   const unitsChanged =
-    (userProfile?.weightUnit ?? "kg") !== weightUnit ||
-    (userProfile?.lengthUnit ?? "cm") !== lengthUnit;
+    profileWeightUnit !== weightUnit || profileLengthUnit !== lengthUnit;
 
   return {
     weightUnit,
     lengthUnit,
-    setWeightUnit,
-    setLengthUnit,
+    setWeightUnit: setWeightOverride,
+    setLengthUnit: setLengthOverride,
     unitsChanged,
     userProfile,
     saveUnitsAsDefault,

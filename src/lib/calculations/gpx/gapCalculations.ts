@@ -24,9 +24,14 @@ export function calcDeltaEC(grade: number): number {
   );
 }
 
+// Speed data is uniformly spaced at STEP m/s starting from 0
+const SPEED_STEP = 0.05;
+const SPEED_COUNT = BLACK_GAM_DATA.speed_m_s.length;
+const SPEED_MAX = BLACK_GAM_DATA.speed_m_s[SPEED_COUNT - 1];
+
 /**
- * Lookup energy cost or metabolic power at a given speed using Black et al. data
- * Uses linear interpolation between data points
+ * Lookup energy cost or metabolic power at a given speed using Black et al. data.
+ * Uses direct index calculation (O(1)) with linear interpolation.
  *
  * @param speedMs - Running speed in m/s
  * @param column - Which column to look up: 'energy_j_kg_m' or 'energy_j_kg_s'
@@ -36,34 +41,25 @@ export function lookupSpeed(
   speedMs: number,
   column: "energy_j_kg_m" | "energy_j_kg_s",
 ): number {
-  const speed = BLACK_GAM_DATA.speed_m_s;
-  const energy = BLACK_GAM_DATA[column];
-
-  // Check bounds
-  if (speedMs < speed[0] || speedMs > speed[speed.length - 1]) {
+  if (speedMs < 0 || speedMs > SPEED_MAX) {
     return NaN;
   }
 
-  // Find the indices that speedMs falls between
-  let i = 0;
-  for (; i < speed.length - 1; i++) {
-    if (speedMs >= speed[i] && speedMs <= speed[i + 1]) {
-      break;
-    }
-  }
+  const energy = BLACK_GAM_DATA[column];
 
-  // Linear interpolation: y = y0 + (y1 - y0) * ((x - x0) / (x1 - x0))
-  const result =
-    energy[i] +
-    (energy[i + 1] - energy[i]) *
-      ((speedMs - speed[i]) / (speed[i + 1] - speed[i]));
+  // Direct index from uniform spacing: index = speed / step
+  const exactIndex = speedMs / SPEED_STEP;
+  const i = Math.min(Math.floor(exactIndex), SPEED_COUNT - 2);
+  const fraction = exactIndex - i;
 
-  return result;
+  // Linear interpolation
+  return energy[i] + (energy[i + 1] - energy[i]) * fraction;
 }
 
 /**
- * Find the flat-ground speed that produces a given metabolic power
- * Inverse lookup in Black data using metabolic power (W/kg)
+ * Find the flat-ground speed that produces a given metabolic power.
+ * Inverse lookup in Black data using metabolic power (W/kg).
+ * Uses binary search (O(log n)) since metabolic power is monotonically increasing.
  *
  * @param wKg - Target metabolic power in W/kg (J/kg/s)
  * @returns Speed in m/s that produces this power, or NaN if outside range
@@ -77,21 +73,22 @@ export function getEquivFlatSpeed(wKg: number): number {
     return NaN;
   }
 
-  // Metabolic power is monotonically increasing with speed, so we can search linearly
-  let i = 0;
-  for (; i < metPower.length - 1; i++) {
-    if (wKg >= metPower[i] && wKg <= metPower[i + 1]) {
-      break;
+  // Binary search for the interval containing wKg
+  let lo = 0;
+  let hi = metPower.length - 2;
+
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (metPower[mid + 1] < wKg) {
+      lo = mid + 1;
+    } else {
+      hi = mid;
     }
   }
 
   // Linear interpolation to find speed
-  const eqSpeed =
-    speed[i] +
-    (speed[i + 1] - speed[i]) *
-      ((wKg - metPower[i]) / (metPower[i + 1] - metPower[i]));
-
-  return eqSpeed;
+  const fraction = (wKg - metPower[lo]) / (metPower[lo + 1] - metPower[lo]);
+  return speed[lo] + (speed[lo + 1] - speed[lo]) * fraction;
 }
 
 /**

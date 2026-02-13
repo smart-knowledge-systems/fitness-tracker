@@ -5,7 +5,7 @@
 
 import type { Doc } from "@/convex/_generated/dataModel";
 import {
-  averageBodyFat,
+  weightedAverageBodyFat,
   calculateFFMI,
   calculateLeanMass,
 } from "@/lib/calculations";
@@ -44,7 +44,7 @@ export function transformMeasurementsToChartData(
           ? calculateAgeAtDate(profile.birthDate, m.date)
           : 30;
 
-        const bf = averageBodyFat(
+        const bf = weightedAverageBodyFat(
           {
             chest: m.skinfoldChest,
             axilla: m.skinfoldAxilla,
@@ -65,7 +65,7 @@ export function transformMeasurementsToChartData(
           profile.sex,
         );
 
-        bodyFatValue = bf.average;
+        bodyFatValue = bf.weighted;
 
         if (m.weight && bodyFatValue) {
           const ffmiResult = calculateFFMI(
@@ -113,8 +113,8 @@ export function calculateWeightYMin(
     : null;
 
   const estLeanMassKg =
-    latestWithBF && latestWeightKg
-      ? calculateLeanMass(latestWeightKg, latestWithBF.bodyFat!)
+    latestWithBF?.bodyFat != null && latestWeightKg
+      ? calculateLeanMass(latestWeightKg, latestWithBF.bodyFat)
       : null;
 
   // Use max of healthy BMI floor or lean mass estimate (in kg)

@@ -230,7 +230,7 @@ export class LapCalculator {
       );
 
       // Apply GAP and altitude adjustments
-      const adjustedSpeed = this.solver.applyGAPAdjustment(
+      const { speed: adjustedSpeed } = this.solver.applyGAPAdjustment(
         basePaceMs,
         averageGrade,
         averageElevation,

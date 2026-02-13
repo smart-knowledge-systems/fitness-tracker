@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -96,29 +96,29 @@ export default function CooperTestPage() {
     setRaceVo2max1k(vo2maxFrom1k(seconds));
   };
 
-  const logVo2max = async (
-    vo2max: number,
-    options?: { time5k?: string; time1k?: string },
-  ) => {
-    setIsSaving(true);
-    try {
-      await createMeasurement({
-        date: localDateStringToTimestamp(logDate),
-        vo2max,
-        time5k: options?.time5k
-          ? (parseTime(options.time5k) ?? undefined)
-          : undefined,
-        time1k: options?.time1k
-          ? (parseTime(options.time1k) ?? undefined)
-          : undefined,
-      });
-      setSaved(true);
-      if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
-      savedTimeoutRef.current = setTimeout(() => setSaved(false), 2000);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const logVo2max = useCallback(
+    async (vo2max: number, options?: { time5k?: string; time1k?: string }) => {
+      setIsSaving(true);
+      try {
+        await createMeasurement({
+          date: localDateStringToTimestamp(logDate),
+          vo2max,
+          time5k: options?.time5k
+            ? (parseTime(options.time5k) ?? undefined)
+            : undefined,
+          time1k: options?.time1k
+            ? (parseTime(options.time1k) ?? undefined)
+            : undefined,
+        });
+        setSaved(true);
+        if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
+        savedTimeoutRef.current = setTimeout(() => setSaved(false), 2000);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [createMeasurement, logDate],
+  );
 
   return (
     <div className="space-y-6">

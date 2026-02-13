@@ -84,12 +84,14 @@ const COLUMN_MAP: Record<string, string> = {
 
 interface ParsedRow {
   date: number;
+  fieldCount: number;
   [key: string]: number | undefined;
 }
 
 // Fields that need unit conversion (all circumference + height)
-const WEIGHT_FIELDS = ["weight"];
-const LENGTH_FIELDS = [
+// Using Sets for O(1) lookups during CSV parsing
+const WEIGHT_FIELDS = new Set(["weight"]);
+const LENGTH_FIELDS = new Set([
   "waistCirc",
   "neckCirc",
   "hipCirc",
@@ -100,7 +102,7 @@ const LENGTH_FIELDS = [
   "calfCirc",
   "chestCirc",
   "shoulderCirc",
-];
+]);
 
 function getExampleCSV(weightUnit: WeightUnit, lengthUnit: LengthUnit): string {
   const w = weightUnit === "lbs" ? ["166.5", "165.3"] : ["75.5", "75.0"];
@@ -186,9 +188,9 @@ export default function ImportPage() {
           } else {
             const num = parseFloat(values[index]);
             if (!isNaN(num)) {
-              if (WEIGHT_FIELDS.includes(header)) {
+              if (WEIGHT_FIELDS.has(header)) {
                 row[header] = convertWeightForStorage(num, wUnit);
-              } else if (LENGTH_FIELDS.includes(header)) {
+              } else if (LENGTH_FIELDS.has(header)) {
                 row[header] = convertLengthForStorage(num, lUnit);
               } else {
                 row[header] = num;
@@ -199,6 +201,10 @@ export default function ImportPage() {
       });
 
       if (row.date) {
+        // Pre-compute field count to avoid recalculating in render
+        row.fieldCount = Object.keys(row).filter(
+          (k) => k !== "date" && k !== "fieldCount" && row[k] !== undefined,
+        ).length;
         results.push(row as ParsedRow);
       }
     }
@@ -467,13 +473,7 @@ export default function ImportPage() {
                         {row.waistCirc ?? "-"}
                       </td>
                       <td className="py-2 text-right">{row.neckCirc ?? "-"}</td>
-                      <td className="py-2 text-right">
-                        {
-                          Object.keys(row).filter(
-                            (k) => k !== "date" && row[k] !== undefined,
-                          ).length
-                        }
-                      </td>
+                      <td className="py-2 text-right">{row.fieldCount}</td>
                     </tr>
                   ))}
                   {preview.length > 10 && (

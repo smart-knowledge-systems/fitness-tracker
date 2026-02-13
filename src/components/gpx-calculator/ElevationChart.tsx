@@ -12,11 +12,10 @@ import {
   ReferenceLine,
 } from "recharts";
 import { LapSplit, metersToFeet } from "@/lib/calculations/gpx";
+import { useGpxDisplay } from "./GpxDisplayContext";
 
 interface ElevationChartProps {
   lapSplits: LapSplit[];
-  elevationUnit: "ft" | "m";
-  paceUnit: "km" | "mi";
 }
 
 interface ChartDataPoint {
@@ -67,11 +66,9 @@ function CustomTooltip({
   return null;
 }
 
-export function ElevationChart({
-  lapSplits,
-  elevationUnit,
-  paceUnit,
-}: ElevationChartProps) {
+export function ElevationChart({ lapSplits }: ElevationChartProps) {
+  const { elevationUnit, paceUnit } = useGpxDisplay();
+
   // Build chart data from lap splits
   const chartData: ChartDataPoint[] = [];
 

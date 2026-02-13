@@ -25,17 +25,21 @@ export function SignUpForm() {
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
+  // Derive validation during render
+  const passwordsMatch = password === confirmPassword;
+  const passwordLongEnough = password.length >= 8;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match");
+    if (!passwordLongEnough) {
+      setError("Password must be at least 8 characters");
       return;
     }
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters");
+    if (!passwordsMatch) {
+      setError("Passwords do not match");
       return;
     }
 
@@ -95,6 +99,9 @@ export function SignUpForm() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
             />
+            {confirmPassword && !passwordsMatch && (
+              <p className="text-xs text-destructive">Passwords do not match</p>
+            )}
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">

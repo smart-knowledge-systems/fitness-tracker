@@ -19,6 +19,47 @@ import { type WeightUnit, type LengthUnit } from "@/lib/unitConversion";
 import { Check, Trash2, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 
+// --- Extracted sub-components ---
+
+function TrendIcon({ projection }: { projection: ProjectionResult }) {
+  const { direction, colorClass } = getTrendConfig(projection);
+  const className = `h-4 w-4 ${colorClass}`;
+
+  switch (direction) {
+    case "up":
+      return <TrendingUp className={className} />;
+    case "down":
+      return <TrendingDown className={className} />;
+    default:
+      return <Minus className={className} />;
+  }
+}
+
+function ChartVisibilityToggle({
+  color,
+  isVisible,
+  onToggle,
+}: {
+  color: string;
+  isVisible: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="h-3 w-3 rounded-full border-2 transition-colors"
+      style={{
+        borderColor: color,
+        backgroundColor: isVisible ? color : "transparent",
+      }}
+      aria-label={isVisible ? "Hide on chart" : "Show on chart"}
+    />
+  );
+}
+
+// --- Main component ---
+
 interface GoalCardProps {
   goal: Doc<"goals">;
   projection: ProjectionResult | null;
@@ -46,23 +87,7 @@ export function GoalCard({
   const metricLabel = config?.label ?? goal.metric;
   const formatContext = { metric: goal.metric, weightUnit, lengthUnit };
 
-  // Get status badge configuration
   const statusConfig = getGoalStatus(goal, projection);
-
-  // Get trend icon configuration
-  const trendConfig = getTrendConfig(projection);
-
-  // Render trend icon based on configuration
-  const renderTrendIcon = () => {
-    switch (trendConfig.direction) {
-      case "up":
-        return <TrendingUp className={`h-4 w-4 ${trendConfig.colorClass}`} />;
-      case "down":
-        return <TrendingDown className={`h-4 w-4 ${trendConfig.colorClass}`} />;
-      default:
-        return <Minus className={`h-4 w-4 ${trendConfig.colorClass}`} />;
-    }
-  };
 
   return (
     <Card className={goal.completed ? "opacity-60" : ""}>
@@ -70,19 +95,10 @@ export function GoalCard({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             {chartColor && onToggleChartVisibility && !goal.completed && (
-              <button
-                type="button"
-                onClick={onToggleChartVisibility}
-                className="h-3 w-3 rounded-full border-2 transition-colors"
-                style={{
-                  borderColor: chartColor,
-                  backgroundColor: isVisibleOnChart
-                    ? chartColor
-                    : "transparent",
-                }}
-                aria-label={
-                  isVisibleOnChart ? "Hide on chart" : "Show on chart"
-                }
+              <ChartVisibilityToggle
+                color={chartColor}
+                isVisible={isVisibleOnChart}
+                onToggle={onToggleChartVisibility}
               />
             )}
             <CardTitle className="text-lg">{metricLabel}</CardTitle>
@@ -134,7 +150,7 @@ export function GoalCard({
         {projection && !goal.completed && (
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-1">
-              {renderTrendIcon()}
+              <TrendIcon projection={projection} />
               <span className="text-muted-foreground">
                 {formatGoalRate(projection.rate, formatContext)}
               </span>

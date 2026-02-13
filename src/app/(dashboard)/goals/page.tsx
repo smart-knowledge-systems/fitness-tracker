@@ -326,7 +326,10 @@ export default function GoalsPage() {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting || !metric}>
+              <Button
+                type="submit"
+                disabled={isSubmitting || !metric || isLoading}
+              >
                 Create Goal
               </Button>
             </DialogFooter>

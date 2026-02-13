@@ -28,7 +28,7 @@ export const update = mutation({
     const measurement = await ctx.db.get(id);
 
     if (!measurement || measurement.userId !== userId) {
-      throw new Error("Measurement not found");
+      throw new Error("Unauthorized");
     }
 
     await ctx.db.patch(id, updates);
@@ -43,7 +43,7 @@ export const remove = mutation({
 
     const measurement = await ctx.db.get(args.id);
     if (!measurement || measurement.userId !== userId) {
-      throw new Error("Measurement not found");
+      throw new Error("Unauthorized");
     }
 
     await ctx.db.delete(args.id);

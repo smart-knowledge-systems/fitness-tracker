@@ -19,7 +19,7 @@ import {
   formatTime,
   formatPace,
   calculatePace,
-} from "@/lib/calculations";
+} from "@/lib/calculations/fitness";
 
 export default function RaceTimeCalculatorPage() {
   const [userVo2max, setUserVo2max] = useState("");
@@ -30,19 +30,20 @@ export default function RaceTimeCalculatorPage() {
   const latestMeasurement = useQuery(api.measurements.getLatest);
 
   // Derive the displayed value during render instead of using an effect
+  const latestVo2max = latestMeasurement?.vo2max;
+  const latestDate = latestMeasurement?.date;
   const vo2max = useMemo(() => {
     if (hasUserEdited) {
       return userVo2max;
     }
-    if (latestMeasurement?.vo2max && latestMeasurement.date) {
-      const daysSince =
-        (mountTime - latestMeasurement.date) / (1000 * 60 * 60 * 24);
+    if (latestVo2max && latestDate) {
+      const daysSince = (mountTime - latestDate) / (1000 * 60 * 60 * 24);
       if (daysSince < 28) {
-        return latestMeasurement.vo2max.toString();
+        return latestVo2max.toString();
       }
     }
     return "";
-  }, [hasUserEdited, userVo2max, latestMeasurement, mountTime]);
+  }, [hasUserEdited, userVo2max, latestVo2max, latestDate, mountTime]);
 
   const results = useMemo(() => {
     const vo2 = parseFloat(vo2max);

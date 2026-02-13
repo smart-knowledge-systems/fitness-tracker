@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,53 +24,62 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { toLocalDateString, localDateStringToTimestamp } from "@/lib/dateUtils";
 
+const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
+
 export default function SettingsPage() {
   const userProfile = useQuery(api.userProfile.get);
   const upsertProfile = useMutation(api.userProfile.upsert);
 
-  const [sex, setSex] = useState<"male" | "female">("male");
-  const [race, setRace] = useState<"caucasian" | "black" | "not-set">(
-    "not-set",
+  // Form state — null means "not yet edited by user, use profile value"
+  const [sex, setSex] = useState<"male" | "female" | null>(null);
+  const [race, setRace] = useState<"caucasian" | "black" | "not-set" | null>(
+    null,
   );
-  const [birthDate, setBirthDate] = useState("");
-  const [height, setHeight] = useState("");
+  const [birthDate, setBirthDate] = useState<string | null>(null);
+  const [height, setHeight] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Load existing profile data
-  useEffect(() => {
-    if (userProfile) {
-      setSex(userProfile.sex);
-      setRace(userProfile.race ?? "not-set");
-      setBirthDate(toLocalDateString(new Date(userProfile.birthDate)));
-      setHeight(userProfile.height.toString());
-    }
-  }, [userProfile]);
+  // Derive displayed values: user edits take priority, then profile data, then defaults
+  const displaySex = sex ?? userProfile?.sex ?? "male";
+  const displayRace = race ?? userProfile?.race ?? "not-set";
+  const displayBirthDate =
+    birthDate ??
+    (userProfile?.birthDate
+      ? toLocalDateString(new Date(userProfile.birthDate))
+      : "");
+  const displayHeight =
+    height ?? (userProfile?.height ? userProfile.height.toString() : "");
+
+  const age = displayBirthDate
+    ? Math.floor(
+        (Date.now() - localDateStringToTimestamp(displayBirthDate)) /
+          MS_PER_YEAR,
+      )
+    : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
 
-    const heightNum = parseFloat(height);
-    const birthDateTimestamp = localDateStringToTimestamp(birthDate);
+    const heightNum = parseFloat(displayHeight);
+    const birthDateTimestamp = localDateStringToTimestamp(displayBirthDate);
 
     if (isNaN(heightNum) || heightNum <= 0) {
       toast.error("Please enter a valid height");
-      setIsSubmitting(false);
       return;
     }
 
     if (isNaN(birthDateTimestamp)) {
       toast.error("Please enter a valid birth date");
-      setIsSubmitting(false);
       return;
     }
 
+    setIsSubmitting(true);
     try {
       await upsertProfile({
-        sex,
+        sex: displaySex,
         birthDate: birthDateTimestamp,
         height: heightNum,
-        race: race === "not-set" ? undefined : race,
+        race: displayRace === "not-set" ? undefined : displayRace,
       });
       toast.success("Profile saved!");
     } catch (error) {
@@ -80,13 +89,6 @@ export default function SettingsPage() {
       setIsSubmitting(false);
     }
   };
-
-  const age = birthDate
-    ? Math.floor(
-        (Date.now() - localDateStringToTimestamp(birthDate)) /
-          (365.25 * 24 * 60 * 60 * 1000),
-      )
-    : null;
 
   return (
     <div className="space-y-6">
@@ -108,7 +110,7 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label htmlFor="sex">Sex</Label>
                 <Select
-                  value={sex}
+                  value={displaySex}
                   onValueChange={(value: "male" | "female") => setSex(value)}
                 >
                   <SelectTrigger id="sex">
@@ -127,7 +129,7 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label htmlFor="race">Ethnicity (for body composition)</Label>
                 <Select
-                  value={race}
+                  value={displayRace}
                   onValueChange={(value: "caucasian" | "black" | "not-set") =>
                     setRace(value)
                   }
@@ -154,7 +156,7 @@ export default function SettingsPage() {
                   type="number"
                   step="0.1"
                   placeholder="175"
-                  value={height}
+                  value={displayHeight}
                   onChange={(e) => setHeight(e.target.value)}
                   required
                 />
@@ -168,7 +170,7 @@ export default function SettingsPage() {
                 <Input
                   id="birthDate"
                   type="date"
-                  value={birthDate}
+                  value={displayBirthDate}
                   onChange={(e) => setBirthDate(e.target.value)}
                   required
                 />

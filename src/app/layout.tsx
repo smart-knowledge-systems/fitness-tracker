@@ -36,8 +36,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <ConvexClientProvider>{children}</ConvexClientProvider>
-          <Toaster />
+          <ConvexClientProvider>
+            {children}
+            <Toaster />
+          </ConvexClientProvider>
         </ThemeProvider>
       </body>
     </html>

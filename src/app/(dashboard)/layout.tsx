@@ -20,6 +20,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { api } from "@/convex/_generated/api";
 import type { WeightUnit, LengthUnit } from "@/lib/unitConversion";
+import { UnitToggles } from "@/components/UnitToggles";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -111,15 +112,15 @@ export default function DashboardLayout({
   const currentWeightUnit: WeightUnit = userProfile?.weightUnit ?? "kg";
   const currentLengthUnit: LengthUnit = userProfile?.lengthUnit ?? "cm";
 
-  const handleWeightUnitChange = async (unit: WeightUnit) => {
+  const handleWeightUnitChange = (unit: WeightUnit) => {
     if (unit !== currentWeightUnit) {
-      await updateUnitPreferences({ weightUnit: unit });
+      updateUnitPreferences({ weightUnit: unit }).catch(() => {});
     }
   };
 
-  const handleLengthUnitChange = async (unit: LengthUnit) => {
+  const handleLengthUnitChange = (unit: LengthUnit) => {
     if (unit !== currentLengthUnit) {
-      await updateUnitPreferences({ lengthUnit: unit });
+      updateUnitPreferences({ lengthUnit: unit }).catch(() => {});
     }
   };
 
@@ -196,49 +197,14 @@ export default function DashboardLayout({
             <SidebarGroup>
               <SidebarGroupLabel>Display Units</SidebarGroupLabel>
               <SidebarGroupContent>
-                <div className="space-y-3 px-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      Weight
-                    </span>
-                    <div className="flex rounded border overflow-hidden">
-                      <button
-                        type="button"
-                        className={`px-2 py-1 text-xs transition-colors ${currentWeightUnit === "kg" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                        onClick={() => handleWeightUnitChange("kg")}
-                      >
-                        kg
-                      </button>
-                      <button
-                        type="button"
-                        className={`px-2 py-1 text-xs transition-colors ${currentWeightUnit === "lbs" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                        onClick={() => handleWeightUnitChange("lbs")}
-                      >
-                        lbs
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">
-                      Length
-                    </span>
-                    <div className="flex rounded border overflow-hidden">
-                      <button
-                        type="button"
-                        className={`px-2 py-1 text-xs transition-colors ${currentLengthUnit === "cm" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                        onClick={() => handleLengthUnitChange("cm")}
-                      >
-                        cm
-                      </button>
-                      <button
-                        type="button"
-                        className={`px-2 py-1 text-xs transition-colors ${currentLengthUnit === "in" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                        onClick={() => handleLengthUnitChange("in")}
-                      >
-                        in
-                      </button>
-                    </div>
-                  </div>
+                <div className="px-2">
+                  <UnitToggles
+                    weightUnit={currentWeightUnit}
+                    lengthUnit={currentLengthUnit}
+                    onWeightChange={handleWeightUnitChange}
+                    onLengthChange={handleLengthUnitChange}
+                    size="compact"
+                  />
                 </div>
               </SidebarGroupContent>
             </SidebarGroup>

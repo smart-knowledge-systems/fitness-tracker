@@ -104,7 +104,7 @@ export default function WelcomePage() {
       <section className="flex flex-1 flex-col items-center justify-center px-4 py-16 text-center md:py-24">
         <div className="mx-auto max-w-3xl space-y-6">
           <div className="flex justify-center">
-            <Activity className="h-16 w-16 text-primary" />
+            <Activity aria-hidden className="h-16 w-16 text-primary" />
           </div>
           <h1 className="text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl">
             Track Your Fitness Journey

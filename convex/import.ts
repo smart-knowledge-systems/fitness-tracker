@@ -10,6 +10,10 @@ export const importMeasurements = mutation({
   handler: async (ctx, args) => {
     const userId = await getUserIdOrThrow(ctx);
 
+    if (args.measurements.length > 1000) {
+      throw new Error("Cannot import more than 1000 measurements at once");
+    }
+
     const ids = await Promise.all(
       args.measurements.map((measurement) =>
         ctx.db.insert("measurements", {

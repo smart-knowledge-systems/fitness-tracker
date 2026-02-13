@@ -45,7 +45,7 @@ export const update = mutation({
     const goal = await ctx.db.get(id);
 
     if (!goal || goal.userId !== userId) {
-      throw new Error("Goal not found");
+      throw new Error("Unauthorized");
     }
 
     await ctx.db.patch(id, updates);
@@ -60,7 +60,7 @@ export const complete = mutation({
 
     const goal = await ctx.db.get(args.id);
     if (!goal || goal.userId !== userId) {
-      throw new Error("Goal not found");
+      throw new Error("Unauthorized");
     }
 
     await ctx.db.patch(args.id, { completed: true });
@@ -74,7 +74,7 @@ export const setChartVisibility = mutation({
 
     const goal = await ctx.db.get(id);
     if (!goal || goal.userId !== userId) {
-      throw new Error("Goal not found");
+      throw new Error("Unauthorized");
     }
 
     await ctx.db.patch(id, { isVisibleOnChart: isVisible });
@@ -88,7 +88,7 @@ export const remove = mutation({
 
     const goal = await ctx.db.get(args.id);
     if (!goal || goal.userId !== userId) {
-      throw new Error("Goal not found");
+      throw new Error("Unauthorized");
     }
 
     await ctx.db.delete(args.id);
@@ -106,7 +106,7 @@ export const list = query({
     const goals = await ctx.db
       .query("goals")
       .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
+      .take(100);
 
     if (args.includeCompleted) {
       return goals;

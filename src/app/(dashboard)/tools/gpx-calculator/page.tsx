@@ -22,9 +22,36 @@ import {
   GoalPaceSolver,
   LapCalculator,
   LapCalculatorResult,
+  LapSplit,
   RouteStats,
   metersToFeet,
 } from "@/lib/calculations/gpx";
+
+function formatDistance(meters: number, paceUnit: "km" | "mi") {
+  const km = meters / 1000;
+  const miles = meters / 1609.344;
+  return paceUnit === "mi" ? `${miles.toFixed(2)} mi` : `${km.toFixed(2)} km`;
+}
+
+function formatElevation(meters: number, elevationUnit: "ft" | "m") {
+  const value = elevationUnit === "ft" ? metersToFeet(meters) : meters;
+  return `${value.toFixed(0)} ${elevationUnit}`;
+}
+
+function downloadCSV(lapSplits: LapSplit[], fileName: string) {
+  const lapCalculator = new LapCalculator(new GoalPaceSolver(0));
+  const csv = lapCalculator.generateCSV(lapSplits);
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${fileName.replace(".gpx", "")}-splits.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
 
 export default function GpxCalculatorPage() {
   // GPX file state
@@ -109,31 +136,8 @@ export default function GpxCalculatorPage() {
 
   const handleDownloadCSV = useCallback(() => {
     if (!result) return;
-
-    const lapCalculator = new LapCalculator(new GoalPaceSolver(0));
-    const csv = lapCalculator.generateCSV(result.lapSplits);
-
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${fileName.replace(".gpx", "")}-splits.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadCSV(result.lapSplits, fileName);
   }, [result, fileName]);
-
-  const formatDistance = (meters: number) => {
-    const km = meters / 1000;
-    const miles = meters / 1609.344;
-    return paceUnit === "mi" ? `${miles.toFixed(2)} mi` : `${km.toFixed(2)} km`;
-  };
-
-  const formatElevation = (meters: number) => {
-    const value = elevationUnit === "ft" ? metersToFeet(meters) : meters;
-    return `${value.toFixed(0)} ${elevationUnit}`;
-  };
 
   return (
     <div className="space-y-6">
@@ -170,7 +174,7 @@ export default function GpxCalculatorPage() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Distance:</span>
                     <span className="font-medium">
-                      {formatDistance(routeStats.totalDistance)}
+                      {formatDistance(routeStats.totalDistance, paceUnit)}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -178,7 +182,11 @@ export default function GpxCalculatorPage() {
                       Elevation Gain:
                     </span>
                     <span className="font-medium text-red-500">
-                      +{formatElevation(routeStats.totalElevationGain)}
+                      +
+                      {formatElevation(
+                        routeStats.totalElevationGain,
+                        elevationUnit,
+                      )}
                     </span>
                   </div>
                   <div className="flex justify-between">
@@ -186,7 +194,11 @@ export default function GpxCalculatorPage() {
                       Elevation Loss:
                     </span>
                     <span className="font-medium text-green-500">
-                      -{formatElevation(routeStats.totalElevationLoss)}
+                      -
+                      {formatElevation(
+                        routeStats.totalElevationLoss,
+                        elevationUnit,
+                      )}
                     </span>
                   </div>
                   <div className="flex justify-between">

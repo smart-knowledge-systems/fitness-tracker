@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,21 +22,20 @@ export function SignInForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setIsLoading(true);
 
-    try {
-      await signIn("password", { email, password, flow: "signIn" });
-      router.push("/");
-    } catch {
-      setError("Invalid email or password");
-    } finally {
-      setIsLoading(false);
-    }
+    startTransition(async () => {
+      try {
+        await signIn("password", { email, password, flow: "signIn" });
+        router.push("/");
+      } catch {
+        setError("Invalid email or password");
+      }
+    });
   };
 
   return (
@@ -77,8 +76,8 @@ export function SignInForm() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Signing in..." : "Sign In"}
+          <Button type="submit" className="w-full" disabled={isPending}>
+            {isPending ? "Signing in..." : "Sign In"}
           </Button>
           <p className="text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}

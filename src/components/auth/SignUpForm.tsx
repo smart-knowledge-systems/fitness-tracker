@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,9 +23,9 @@ export function SignUpForm() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
@@ -39,16 +39,14 @@ export function SignUpForm() {
       return;
     }
 
-    setIsLoading(true);
-
-    try {
-      await signIn("password", { email, password, flow: "signUp" });
-      router.push("/settings"); // Redirect to settings to complete profile
-    } catch {
-      setError("Could not create account. Email may already be in use.");
-    } finally {
-      setIsLoading(false);
-    }
+    startTransition(async () => {
+      try {
+        await signIn("password", { email, password, flow: "signUp" });
+        router.push("/settings"); // Redirect to settings to complete profile
+      } catch {
+        setError("Could not create account. Email may already be in use.");
+      }
+    });
   };
 
   return (
@@ -100,8 +98,8 @@ export function SignUpForm() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? "Creating account..." : "Create Account"}
+          <Button type="submit" className="w-full" disabled={isPending}>
+            {isPending ? "Creating account..." : "Create Account"}
           </Button>
           <p className="text-sm text-muted-foreground">
             Already have an account?{" "}

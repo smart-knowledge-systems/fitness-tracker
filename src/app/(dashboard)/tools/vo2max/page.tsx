@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,10 +18,13 @@ import {
   classifyCooperTest,
   vo2maxFrom5k,
   vo2maxFrom1k,
-} from "@/lib/calculations";
+  parseTime,
+} from "@/lib/calculations/fitness";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toLocalDateString, localDateStringToTimestamp } from "@/lib/dateUtils";
+
+const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
 
 export default function CooperTestPage() {
   const userProfile = useQuery(api.userProfile.get);
@@ -46,17 +49,22 @@ export default function CooperTestPage() {
   // Log result state
   const [logDate, setLogDate] = useState(toLocalDateString(new Date()));
   const [saved, setSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const createMeasurement = useMutation(api.measurements.create);
 
-  // Capture current time once on mount for age calculation
-  const [now] = useState(() => Date.now());
+  // Clean up saved indicator timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
+    };
+  }, []);
 
-  const age = useMemo(() => {
-    if (!userProfile?.birthDate) return 30;
-    return Math.floor(
-      (now - userProfile.birthDate) / (365.25 * 24 * 60 * 60 * 1000),
-    );
-  }, [userProfile?.birthDate, now]);
+  // Derive age from profile — simple arithmetic, no useMemo needed
+  const now = Date.now();
+  const age = userProfile?.birthDate
+    ? Math.floor((now - userProfile.birthDate) / MS_PER_YEAR)
+    : 30;
   const sex = userProfile?.sex ?? "male";
 
   const calculateCooper = () => {
@@ -77,55 +85,39 @@ export default function CooperTestPage() {
   };
 
   const calculate5kVo2max = () => {
-    const parts = time5k.split(":").map(Number);
-    if (parts.some(isNaN)) return;
-
-    let seconds: number;
-    if (parts.length === 2) {
-      seconds = parts[0] * 60 + parts[1];
-    } else if (parts.length === 3) {
-      seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
-    } else {
-      return;
-    }
-
+    const seconds = parseTime(time5k);
+    if (seconds === null) return;
     setRaceVo2max5k(vo2maxFrom5k(seconds));
   };
 
   const calculate1kVo2max = () => {
-    const parts = time1k.split(":").map(Number);
-    if (parts.some(isNaN)) return;
-
-    let seconds: number;
-    if (parts.length === 2) {
-      seconds = parts[0] * 60 + parts[1];
-    } else {
-      return;
-    }
-
+    const seconds = parseTime(time1k);
+    if (seconds === null) return;
     setRaceVo2max1k(vo2maxFrom1k(seconds));
-  };
-
-  const parseTimeToSeconds = (time: string): number | undefined => {
-    const parts = time.split(":").map(Number);
-    if (parts.some(isNaN)) return undefined;
-    if (parts.length === 2) return parts[0] * 60 + parts[1];
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    return undefined;
   };
 
   const logVo2max = async (
     vo2max: number,
     options?: { time5k?: string; time1k?: string },
   ) => {
-    await createMeasurement({
-      date: localDateStringToTimestamp(logDate),
-      vo2max,
-      time5k: options?.time5k ? parseTimeToSeconds(options.time5k) : undefined,
-      time1k: options?.time1k ? parseTimeToSeconds(options.time1k) : undefined,
-    });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setIsSaving(true);
+    try {
+      await createMeasurement({
+        date: localDateStringToTimestamp(logDate),
+        vo2max,
+        time5k: options?.time5k
+          ? (parseTime(options.time5k) ?? undefined)
+          : undefined,
+        time1k: options?.time1k
+          ? (parseTime(options.time1k) ?? undefined)
+          : undefined,
+      });
+      setSaved(true);
+      if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
+      savedTimeoutRef.current = setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -186,23 +178,14 @@ export default function CooperTestPage() {
                   <p className="text-sm text-muted-foreground">
                     Classification for {age} year old {sex}
                   </p>
-                  <div className="mt-4 flex items-end gap-2">
-                    <div className="flex-1 space-y-1">
-                      <Label htmlFor="cooperLogDate">Date</Label>
-                      <Input
-                        id="cooperLogDate"
-                        type="date"
-                        value={logDate}
-                        onChange={(e) => setLogDate(e.target.value)}
-                      />
-                    </div>
-                    <Button onClick={() => logVo2max(cooperResult.vo2max)}>
-                      Log Result
-                    </Button>
-                    {saved && (
-                      <span className="text-sm text-green-600">Saved!</span>
-                    )}
-                  </div>
+                  <LogResultSection
+                    logDate={logDate}
+                    onDateChange={setLogDate}
+                    onLog={async () => await logVo2max(cooperResult.vo2max)}
+                    saved={saved}
+                    isSaving={isSaving}
+                    dateInputId="cooperLogDate"
+                  />
                 </div>
               )}
             </CardContent>
@@ -285,25 +268,16 @@ export default function CooperTestPage() {
                       <p className="text-lg font-medium">
                         VO2max: {raceVo2max5k} mL/kg/min
                       </p>
-                      <div className="flex items-end gap-2">
-                        <div className="flex-1 space-y-1">
-                          <Label htmlFor="race5kLogDate">Date</Label>
-                          <Input
-                            id="race5kLogDate"
-                            type="date"
-                            value={logDate}
-                            onChange={(e) => setLogDate(e.target.value)}
-                          />
-                        </div>
-                        <Button
-                          onClick={() => logVo2max(raceVo2max5k, { time5k })}
-                        >
-                          Log Result
-                        </Button>
-                        {saved && (
-                          <span className="text-sm text-green-600">Saved!</span>
-                        )}
-                      </div>
+                      <LogResultSection
+                        logDate={logDate}
+                        onDateChange={setLogDate}
+                        onLog={async () =>
+                          await logVo2max(raceVo2max5k, { time5k })
+                        }
+                        saved={saved}
+                        isSaving={isSaving}
+                        dateInputId="race5kLogDate"
+                      />
                     </div>
                   )}
                 </div>
@@ -328,25 +302,16 @@ export default function CooperTestPage() {
                       <p className="text-lg font-medium">
                         VO2max: {raceVo2max1k} mL/kg/min
                       </p>
-                      <div className="flex items-end gap-2">
-                        <div className="flex-1 space-y-1">
-                          <Label htmlFor="race1kLogDate">Date</Label>
-                          <Input
-                            id="race1kLogDate"
-                            type="date"
-                            value={logDate}
-                            onChange={(e) => setLogDate(e.target.value)}
-                          />
-                        </div>
-                        <Button
-                          onClick={() => logVo2max(raceVo2max1k, { time1k })}
-                        >
-                          Log Result
-                        </Button>
-                        {saved && (
-                          <span className="text-sm text-green-600">Saved!</span>
-                        )}
-                      </div>
+                      <LogResultSection
+                        logDate={logDate}
+                        onDateChange={setLogDate}
+                        onLog={async () =>
+                          await logVo2max(raceVo2max1k, { time1k })
+                        }
+                        saved={saved}
+                        isSaving={isSaving}
+                        dateInputId="race1kLogDate"
+                      />
                     </div>
                   )}
                 </div>
@@ -407,6 +372,42 @@ export default function CooperTestPage() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// --- Extracted Components ---
+
+function LogResultSection({
+  logDate,
+  onDateChange,
+  onLog,
+  saved,
+  isSaving,
+  dateInputId,
+}: {
+  logDate: string;
+  onDateChange: (date: string) => void;
+  onLog: () => Promise<void>;
+  saved: boolean;
+  isSaving: boolean;
+  dateInputId: string;
+}) {
+  return (
+    <div className="mt-4 flex items-end gap-2">
+      <div className="flex-1 space-y-1">
+        <Label htmlFor={dateInputId}>Date</Label>
+        <Input
+          id={dateInputId}
+          type="date"
+          value={logDate}
+          onChange={(e) => onDateChange(e.target.value)}
+        />
+      </div>
+      <Button onClick={onLog} disabled={isSaving}>
+        {isSaving ? "Saving..." : "Log Result"}
+      </Button>
+      {saved && <span className="text-sm text-green-600">Saved!</span>}
     </div>
   );
 }

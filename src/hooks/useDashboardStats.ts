@@ -10,6 +10,8 @@ import {
 import {
   weightedAverageBodyFat,
   type BodyFatResults,
+  type SkinfoldMeasurements,
+  type CircumferenceMeasurements,
 } from "@/lib/calculations";
 import { calculateAge } from "@/lib/calculations/ageUtils";
 
@@ -32,6 +34,35 @@ export interface DashboardStats {
   isLoading: boolean;
 }
 
+/** Build skinfold data from a composite measurement */
+function buildSkinfoldData(
+  composite: Partial<Measurement>,
+): SkinfoldMeasurements {
+  return {
+    chest: composite.skinfoldChest,
+    axilla: composite.skinfoldAxilla,
+    tricep: composite.skinfoldTricep,
+    subscapular: composite.skinfoldSubscapular,
+    abdominal: composite.skinfoldAbdominal,
+    suprailiac: composite.skinfoldSuprailiac,
+    thigh: composite.skinfoldThigh,
+    bicep: composite.skinfoldBicep,
+  };
+}
+
+/** Build circumference data from a composite measurement */
+function buildCircumferenceData(
+  composite: Partial<Measurement>,
+  fallbackHeight: number | undefined,
+): Partial<CircumferenceMeasurements> {
+  return {
+    waist: composite.waistCirc,
+    neck: composite.neckCirc,
+    hip: composite.hipCirc,
+    height: composite.height ?? fallbackHeight,
+  };
+}
+
 /**
  * Hook for computing dashboard statistics.
  * Extracted from Dashboard page for reusability.
@@ -46,11 +77,10 @@ export function useDashboardStats(
   // Capture current time once on mount for age calculation
   const [now] = useState(() => Date.now());
 
-  // Fetch measurements for the lookback period
-  const startDate = useMemo(
-    () => now - lookbackDays * 24 * 60 * 60 * 1000,
-    [now, lookbackDays],
-  );
+  // Derive date bounds directly — simple arithmetic, no memoization needed
+  const startDate = now - lookbackDays * 24 * 60 * 60 * 1000;
+  const cutoffDate = now - currentWindowDays * 24 * 60 * 60 * 1000;
+
   const recentMeasurements = useQuery(api.measurements.getByDateRange, {
     startDate,
     endDate: now,
@@ -66,11 +96,6 @@ export function useDashboardStats(
   );
 
   // Compute current and previous composites
-  const cutoffDate = useMemo(
-    () => now - currentWindowDays * 24 * 60 * 60 * 1000,
-    [now, currentWindowDays],
-  );
-
   const { currentComposite, previousComposite } = useMemo(() => {
     if (!recentMeasurements?.length) {
       return { currentComposite: null, previousComposite: null };
@@ -92,22 +117,8 @@ export function useDashboardStats(
     if (!currentComposite || !userProfile) return null;
 
     return weightedAverageBodyFat(
-      {
-        chest: currentComposite.skinfoldChest,
-        axilla: currentComposite.skinfoldAxilla,
-        tricep: currentComposite.skinfoldTricep,
-        subscapular: currentComposite.skinfoldSubscapular,
-        abdominal: currentComposite.skinfoldAbdominal,
-        suprailiac: currentComposite.skinfoldSuprailiac,
-        thigh: currentComposite.skinfoldThigh,
-        bicep: currentComposite.skinfoldBicep,
-      },
-      {
-        waist: currentComposite.waistCirc,
-        neck: currentComposite.neckCirc,
-        hip: currentComposite.hipCirc,
-        height: currentComposite.height ?? userProfile.height,
-      },
+      buildSkinfoldData(currentComposite),
+      buildCircumferenceData(currentComposite, userProfile.height),
       age,
       userProfile.sex,
       userProfile.race,
@@ -125,30 +136,14 @@ export function useDashboardStats(
       };
     }
 
-    // Weight change
     const weightChange =
       currentComposite.weight != null && previousComposite.weight != null
         ? currentComposite.weight - previousComposite.weight
         : null;
 
-    // Body fat change: compute previous weighted BF from penultimate composite
     const previousBodyFat = weightedAverageBodyFat(
-      {
-        chest: previousComposite.skinfoldChest,
-        axilla: previousComposite.skinfoldAxilla,
-        tricep: previousComposite.skinfoldTricep,
-        subscapular: previousComposite.skinfoldSubscapular,
-        abdominal: previousComposite.skinfoldAbdominal,
-        suprailiac: previousComposite.skinfoldSuprailiac,
-        thigh: previousComposite.skinfoldThigh,
-        bicep: previousComposite.skinfoldBicep,
-      },
-      {
-        waist: previousComposite.waistCirc,
-        neck: previousComposite.neckCirc,
-        hip: previousComposite.hipCirc,
-        height: previousComposite.height ?? userProfile.height,
-      },
+      buildSkinfoldData(previousComposite),
+      buildCircumferenceData(previousComposite, userProfile.height),
       age,
       userProfile.sex,
       userProfile.race,
@@ -159,13 +154,11 @@ export function useDashboardStats(
         ? bodyFatResult.weighted - previousBodyFat.weighted
         : null;
 
-    // VO2max change
     const vo2maxChange =
       currentComposite.vo2max != null && previousComposite.vo2max != null
         ? currentComposite.vo2max - previousComposite.vo2max
         : null;
 
-    // 5k time change
     const time5kChange =
       currentComposite.time5k != null && previousComposite.time5k != null
         ? currentComposite.time5k - previousComposite.time5k

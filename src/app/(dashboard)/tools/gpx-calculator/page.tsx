@@ -169,10 +169,7 @@ function ResultsLoaded({
           </TabsContent>
 
           <TabsContent value="splits" className="mt-4">
-            <LapSplitsTable
-              lapSplits={result.lapSplits}
-              lapInterval={result.lapInterval}
-            />
+            <LapSplitsTable lapSplits={result.lapSplits} />
           </TabsContent>
         </Tabs>
       </CardContent>

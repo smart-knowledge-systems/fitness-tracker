@@ -37,7 +37,7 @@ export function MeasurementForm({ onSuccess }: MeasurementFormProps) {
     userProfile,
     saveUnitsAsDefault,
     setSaveUnitsAsDefault,
-  } = useUnitPreferences({ withSaveDefault: true });
+  } = useUnitPreferences();
 
   const {
     coreMetrics,
@@ -67,7 +67,9 @@ export function MeasurementForm({ onSuccess }: MeasurementFormProps) {
         : undefined;
 
     try {
-      await createMeasurement({
+      const shouldUpdatePrefs = saveUnitsAsDefault && unitsChanged;
+
+      const measurementPromise = createMeasurement({
         date: localDateStringToTimestamp(date),
         weight: parsed.weight,
         waistCirc: parsed.waistCirc,
@@ -95,15 +97,19 @@ export function MeasurementForm({ onSuccess }: MeasurementFormProps) {
         vo2max: parsed.vo2max,
       });
 
-      // Save unit preferences if requested
-      if (saveUnitsAsDefault && unitsChanged) {
-        await updateUnitPreferences({ weightUnit, lengthUnit });
+      // Run mutations in parallel when both are needed
+      if (shouldUpdatePrefs) {
+        await Promise.all([
+          measurementPromise,
+          updateUnitPreferences({ weightUnit, lengthUnit }),
+        ]);
         toast.success("Measurement saved and unit preferences updated!");
       } else {
+        await measurementPromise;
         toast.success("Measurement saved!");
       }
 
-      setSaveUnitsAsDefault?.(false);
+      setSaveUnitsAsDefault(false);
       onSuccess?.();
     } catch (error) {
       toast.error("Failed to save measurement");
@@ -173,8 +179,8 @@ export function MeasurementForm({ onSuccess }: MeasurementFormProps) {
       {/* Save unit preferences checkbox - only visible when units differ from profile */}
       {unitsChanged && (
         <SaveUnitsCheckbox
-          checked={saveUnitsAsDefault ?? false}
-          onCheckedChange={setSaveUnitsAsDefault!}
+          checked={saveUnitsAsDefault}
+          onCheckedChange={setSaveUnitsAsDefault}
         />
       )}
 

@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import { useEffect, useRef } from "react";
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useQuery, useMutation, useConvexAuth } from "convex/react";
@@ -24,20 +24,26 @@ export function ModeToggle() {
     isAuthenticated ? {} : "skip",
   );
   const updateTheme = useMutation(api.userProfile.updateTheme);
-  const [hasSynced, setHasSynced] = React.useState(false);
+  const hasSyncedRef = useRef(false);
 
-  // Sync theme from database on initial load
-  React.useEffect(() => {
-    if (userProfile?.theme && !hasSynced) {
+  // Sync theme from database once when profile first loads
+  useEffect(() => {
+    if (userProfile?.theme && !hasSyncedRef.current) {
+      hasSyncedRef.current = true;
       setTheme(userProfile.theme);
-      setHasSynced(true);
     }
-  }, [userProfile?.theme, setTheme, hasSynced]);
+  }, [userProfile?.theme, setTheme]);
 
-  const handleThemeChange = async (newTheme: Theme) => {
+  const handleThemeChange = (newTheme: Theme) => {
     setTheme(newTheme);
     if (isAuthenticated && userProfile) {
-      await updateTheme({ theme: newTheme });
+      // Fire-and-forget: don't block UI for persistence
+      updateTheme({ theme: newTheme }).catch(() => {
+        // Revert on failure to keep client/server in sync
+        if (userProfile.theme) {
+          setTheme(userProfile.theme);
+        }
+      });
     }
   };
 

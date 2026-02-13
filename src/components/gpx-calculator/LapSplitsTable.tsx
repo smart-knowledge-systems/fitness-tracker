@@ -15,7 +15,6 @@ import { useGpxDisplay } from "./GpxDisplayContext";
 
 interface LapSplitsTableProps {
   lapSplits: LapSplit[];
-  lapInterval: string;
 }
 
 function getGradeColor(grade: number) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   ComposedChart,
   Area,
@@ -69,62 +70,85 @@ function CustomTooltip({
 export function ElevationChart({ lapSplits }: ElevationChartProps) {
   const { elevationUnit, paceUnit } = useGpxDisplay();
 
-  // Build chart data from lap splits
-  const chartData: ChartDataPoint[] = [];
+  // Build chart data and calculate axis domains
+  const { chartData, elevationDomain, paceDomain } = useMemo(() => {
+    const data: ChartDataPoint[] = [];
 
-  // Add starting point
-  if (lapSplits.length > 0) {
-    const firstLap = lapSplits[0];
-    const elevation =
-      elevationUnit === "ft"
-        ? metersToFeet(firstLap.startElevation)
-        : firstLap.startElevation;
+    // Add starting point
+    if (lapSplits.length > 0) {
+      const firstLap = lapSplits[0];
+      const elevation =
+        elevationUnit === "ft"
+          ? metersToFeet(firstLap.startElevation)
+          : firstLap.startElevation;
 
-    chartData.push({
-      distance: 0,
-      distanceLabel: "0",
-      elevation,
-      pace: 0,
-      paceLabel: "",
-      lapNumber: 0,
-    });
-  }
+      data.push({
+        distance: 0,
+        distanceLabel: "0",
+        elevation,
+        pace: 0,
+        paceLabel: "",
+        lapNumber: 0,
+      });
+    }
 
-  // Add each lap end point
-  for (const lap of lapSplits) {
-    const distanceKm = lap.endDistance / 1000;
-    const distanceMi = lap.endDistance / 1609.344;
-    const elevation =
-      elevationUnit === "ft"
-        ? metersToFeet(lap.endElevation)
-        : lap.endElevation;
-    const pace =
-      paceUnit === "mi" ? lap.averagePace * 1.60934 : lap.averagePace;
-    const paceMinutes = Math.floor(pace);
-    const paceSeconds = Math.floor((pace % 1) * 60);
+    // Add each lap end point
+    let minElev = Infinity;
+    let maxElev = -Infinity;
+    let minPace = Infinity;
+    let maxPace = -Infinity;
+    let hasPace = false;
 
-    chartData.push({
-      distance: paceUnit === "mi" ? distanceMi : distanceKm,
-      distanceLabel:
-        paceUnit === "mi" ? distanceMi.toFixed(1) : distanceKm.toFixed(1),
-      elevation,
-      pace: pace,
-      paceLabel: `${paceMinutes}:${paceSeconds.toString().padStart(2, "0")}`,
-      lapNumber: lap.lapNumber,
-    });
-  }
+    for (const lap of lapSplits) {
+      const distanceKm = lap.endDistance / 1000;
+      const distanceMi = lap.endDistance / 1609.344;
+      const elevation =
+        elevationUnit === "ft"
+          ? metersToFeet(lap.endElevation)
+          : lap.endElevation;
+      const pace =
+        paceUnit === "mi" ? lap.averagePace * 1.60934 : lap.averagePace;
+      const paceMinutes = Math.floor(pace);
+      const paceSeconds = Math.floor((pace % 1) * 60);
 
-  // Calculate domain for y-axes
-  const elevations = chartData.map((d) => d.elevation);
-  const paces = chartData.filter((d) => d.pace > 0).map((d) => d.pace);
+      data.push({
+        distance: paceUnit === "mi" ? distanceMi : distanceKm,
+        distanceLabel:
+          paceUnit === "mi" ? distanceMi.toFixed(1) : distanceKm.toFixed(1),
+        elevation,
+        pace,
+        paceLabel: `${paceMinutes}:${paceSeconds.toString().padStart(2, "0")}`,
+        lapNumber: lap.lapNumber,
+      });
 
-  const minElevation = Math.min(...elevations);
-  const maxElevation = Math.max(...elevations);
-  const elevationPadding = (maxElevation - minElevation) * 0.1;
+      if (pace > 0) {
+        hasPace = true;
+        if (pace < minPace) minPace = pace;
+        if (pace > maxPace) maxPace = pace;
+      }
+    }
 
-  const minPace = paces.length > 0 ? Math.min(...paces) : 0;
-  const maxPace = paces.length > 0 ? Math.max(...paces) : 10;
-  const pacePadding = (maxPace - minPace) * 0.1;
+    // Calculate elevation domain from all data points
+    for (const d of data) {
+      if (d.elevation < minElev) minElev = d.elevation;
+      if (d.elevation > maxElev) maxElev = d.elevation;
+    }
+
+    const elevPadding = (maxElev - minElev) * 0.1;
+    const pPadding = hasPace ? (maxPace - minPace) * 0.1 : 0;
+
+    return {
+      chartData: data,
+      elevationDomain: [minElev - elevPadding, maxElev + elevPadding] as [
+        number,
+        number,
+      ],
+      paceDomain: [
+        (hasPace ? minPace : 0) - pPadding,
+        (hasPace ? maxPace : 10) + pPadding,
+      ] as [number, number],
+    };
+  }, [lapSplits, elevationUnit, paceUnit]);
 
   const formatPaceAxis = (value: number) => {
     const minutes = Math.floor(value);
@@ -152,10 +176,7 @@ export function ElevationChart({ lapSplits }: ElevationChartProps) {
           <YAxis
             yAxisId="elevation"
             orientation="left"
-            domain={[
-              minElevation - elevationPadding,
-              maxElevation + elevationPadding,
-            ]}
+            domain={elevationDomain}
             label={{
               value: `Elevation (${elevationUnit})`,
               angle: -90,
@@ -166,7 +187,7 @@ export function ElevationChart({ lapSplits }: ElevationChartProps) {
           <YAxis
             yAxisId="pace"
             orientation="right"
-            domain={[minPace - pacePadding, maxPace + pacePadding]}
+            domain={paceDomain}
             tickFormatter={formatPaceAxis}
             label={{
               value: `Pace (/${paceUnit})`,

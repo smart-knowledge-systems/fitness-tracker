@@ -25,7 +25,6 @@ export function GoalProgressBar({
   // Determine color based on progress and on-track status
   const getProgressColor = () => {
     if (!isOnTrack) return "bg-yellow-500";
-    if (displayProgress >= 100) return "bg-green-500";
     if (displayProgress >= 75) return "bg-green-500";
     if (displayProgress >= 50) return "bg-blue-500";
     if (displayProgress >= 25) return "bg-blue-400";

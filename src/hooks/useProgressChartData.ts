@@ -31,28 +31,25 @@ export function useProgressChartData(
 ): UseProgressChartDataReturn {
   const isLoading = measurements === undefined || profile === undefined;
 
-  // Dynamic chart config based on unit preferences
-  const chartConfig: ChartConfig = useMemo(
-    () => ({
-      weight: {
-        label: `Weight (${weightUnit})`,
-        color: "var(--chart-1)",
-      },
-      bodyFat: {
-        label: "Body Fat %",
-        color: "var(--chart-2)",
-      },
-      ffmi: {
-        label: "FFMI",
-        color: "var(--chart-3)",
-      },
-      vo2max: {
-        label: "VO2max",
-        color: "var(--chart-4)",
-      },
-    }),
-    [weightUnit],
-  );
+  // Chart config derived from weightUnit — simple object, no memoization needed
+  const chartConfig: ChartConfig = {
+    weight: {
+      label: `Weight (${weightUnit})`,
+      color: "var(--chart-1)",
+    },
+    bodyFat: {
+      label: "Body Fat %",
+      color: "var(--chart-2)",
+    },
+    ffmi: {
+      label: "FFMI",
+      color: "var(--chart-3)",
+    },
+    vo2max: {
+      label: "VO2max",
+      color: "var(--chart-4)",
+    },
+  };
 
   // Transform measurements to chart data
   const chartData = useMemo(() => {

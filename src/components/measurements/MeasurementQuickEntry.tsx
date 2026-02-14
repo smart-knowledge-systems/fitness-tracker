@@ -41,7 +41,7 @@ export function MeasurementQuickEntry() {
     userProfile,
     saveUnitsAsDefault,
     setSaveUnitsAsDefault,
-  } = useUnitPreferences({ withSaveDefault: true });
+  } = useUnitPreferences();
 
   const {
     coreMetrics,
@@ -74,8 +74,10 @@ export function MeasurementQuickEntry() {
     try {
       const parsed = getParsedValues(weightUnit, lengthUnit);
 
+      const shouldUpdatePrefs = saveUnitsAsDefault && unitsChanged;
+
       // Quick entry only submits a subset of fields
-      await createMeasurement({
+      const measurementPromise = createMeasurement({
         date: Date.now(),
         weight: parsed.weight,
         waistCirc: parsed.waistCirc,
@@ -95,15 +97,19 @@ export function MeasurementQuickEntry() {
         vo2max: parsed.vo2max,
       });
 
-      // Save unit preferences if requested
-      if (saveUnitsAsDefault && unitsChanged) {
-        await updateUnitPreferences({ weightUnit, lengthUnit });
+      // Run mutations in parallel when both are needed
+      if (shouldUpdatePrefs) {
+        await Promise.all([
+          measurementPromise,
+          updateUnitPreferences({ weightUnit, lengthUnit }),
+        ]);
         toast.success("Measurement saved and unit preferences updated!");
       } else {
+        await measurementPromise;
         toast.success("Measurement saved!");
       }
 
-      setSaveUnitsAsDefault?.(false);
+      setSaveUnitsAsDefault(false);
       clearForm();
     } catch (error) {
       toast.error("Failed to save measurement");
@@ -244,8 +250,8 @@ export function MeasurementQuickEntry() {
           {unitsChanged && (
             <SaveUnitsCheckbox
               id="saveUnitsQuick"
-              checked={saveUnitsAsDefault ?? false}
-              onCheckedChange={setSaveUnitsAsDefault!}
+              checked={saveUnitsAsDefault}
+              onCheckedChange={setSaveUnitsAsDefault}
             />
           )}
 

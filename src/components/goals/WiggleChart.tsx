@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   LineChart,
   Line,
@@ -26,7 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { METRIC_CONFIG } from "@/lib/calculations/goalProjections";
 import { formatShortDate, formatDateWithYear } from "@/lib/dateUtils";
 import { useWiggleChartData } from "@/hooks/useWiggleChartData";
-import type { Doc } from "@/convex/_generated/dataModel";
+import type { Doc, Id } from "@/convex/_generated/dataModel";
 
 // Chart colors for different goals - exported for use by GoalCard and hook
 export const GOAL_COLORS = [
@@ -71,6 +71,18 @@ export function WiggleChart({
     profile,
     weeks: activeWeeks,
   });
+
+  // Index map for O(1) goal lookups by ID (used in tooltip/legend formatters)
+  const goalsById = useMemo(
+    () => new Map(goals.map((g) => [g._id, g])),
+    [goals],
+  );
+
+  // Cache filtered visible goals to avoid duplicate .filter() calls
+  const visibleGoals = useMemo(
+    () => activeGoals.filter((goal) => !hiddenGoalIds.has(goal._id)),
+    [activeGoals, hiddenGoalIds],
+  );
 
   if (activeGoals.length === 0) {
     return null;
@@ -158,7 +170,7 @@ export function WiggleChart({
                       : "";
                   }}
                   formatter={(value, name) => {
-                    const goal = goals.find((g) => g._id === name);
+                    const goal = goalsById.get(name as Id<"goals">);
                     const label = goal
                       ? (METRIC_CONFIG[goal.metric]?.label ?? goal.metric)
                       : name;
@@ -172,7 +184,7 @@ export function WiggleChart({
             />
             <Legend
               formatter={(value) => {
-                const goal = goals.find((g) => g._id === value);
+                const goal = goalsById.get(value as Id<"goals">);
                 return goal
                   ? (METRIC_CONFIG[goal.metric]?.label ?? goal.metric)
                   : value;
@@ -180,34 +192,30 @@ export function WiggleChart({
             />
 
             {/* Reference lines for target dates */}
-            {activeGoals
-              .filter((goal) => !hiddenGoalIds.has(goal._id))
-              .map((goal) =>
-                goal.targetDate ? (
-                  <ReferenceLine
-                    key={`ref-${goal._id}`}
-                    y={goal.targetDate}
-                    stroke={goalColorMap[goal._id]}
-                    strokeDasharray="5 5"
-                    strokeOpacity={0.5}
-                  />
-                ) : null,
-              )}
+            {visibleGoals.map((goal) =>
+              goal.targetDate ? (
+                <ReferenceLine
+                  key={`ref-${goal._id}`}
+                  y={goal.targetDate}
+                  stroke={goalColorMap[goal._id]}
+                  strokeDasharray="5 5"
+                  strokeOpacity={0.5}
+                />
+              ) : null,
+            )}
 
             {/* Lines for each goal */}
-            {activeGoals
-              .filter((goal) => !hiddenGoalIds.has(goal._id))
-              .map((goal) => (
-                <Line
-                  key={goal._id}
-                  type="monotone"
-                  dataKey={goal._id}
-                  stroke={goalColorMap[goal._id]}
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                  connectNulls
-                />
-              ))}
+            {visibleGoals.map((goal) => (
+              <Line
+                key={goal._id}
+                type="monotone"
+                dataKey={goal._id}
+                stroke={goalColorMap[goal._id]}
+                strokeWidth={2}
+                dot={{ r: 3 }}
+                connectNulls
+              />
+            ))}
           </LineChart>
         </ChartContainer>
       </CardContent>

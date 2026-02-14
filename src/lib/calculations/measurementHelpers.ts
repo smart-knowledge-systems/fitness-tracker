@@ -8,6 +8,81 @@ import type { Doc } from "@/convex/_generated/dataModel";
 export type Measurement = Doc<"measurements">;
 
 /**
+ * All numeric measurement field names (excludes system fields, userId, date).
+ * Single source of truth — update this list when measurement schema changes.
+ */
+const MEASUREMENT_FIELDS = [
+  // Core metrics
+  "weight",
+  "height",
+  // Body fat circumferences
+  "waistCirc",
+  "neckCirc",
+  "hipCirc",
+  // Skinfolds
+  "skinfoldChest",
+  "skinfoldAxilla",
+  "skinfoldTricep",
+  "skinfoldSubscapular",
+  "skinfoldAbdominal",
+  "skinfoldSuprailiac",
+  "skinfoldThigh",
+  "skinfoldBicep",
+  // Muscle circumferences
+  "upperArmCirc",
+  "lowerArmCirc",
+  "thighCirc",
+  "calfCirc",
+  "chestCirc",
+  "shoulderCirc",
+  // Performance metrics
+  "time5k",
+  "time1k",
+  "lMinO2",
+  "sKmAt129Bpm",
+  "vo2max",
+] as const satisfies readonly (keyof Measurement)[];
+
+type MeasurementField = (typeof MEASUREMENT_FIELDS)[number];
+
+/**
+ * Find the nth non-null value for a field from date-descending sorted measurements.
+ * nth=0 returns the latest (ultimate), nth=1 returns second-to-latest (penultimate).
+ */
+function nthNonNull(
+  sortedDesc: Measurement[],
+  field: MeasurementField,
+  nth: number,
+): number | undefined {
+  let found = 0;
+  for (const m of sortedDesc) {
+    if (m[field] != null) {
+      if (found === nth) return m[field] as number;
+      found++;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Build a partial measurement by extracting the nth non-null value per field.
+ */
+function extractNthValues(
+  measurements: Measurement[],
+  nth: number,
+): Partial<Measurement> {
+  const sorted = [...measurements].sort((a, b) => b.date - a.date);
+  const result: Partial<Measurement> = {};
+  for (const field of MEASUREMENT_FIELDS) {
+    const value = nthNonNull(sorted, field, nth);
+    if (value !== undefined) {
+      (result as Record<string, number>)[field] = value;
+    }
+  }
+  return result;
+}
+
+/**
  * Find most recent non-null weight from measurements (sorted desc by date).
  */
 export function getLatestWeight(measurements: Measurement[]): number | null {
@@ -44,55 +119,33 @@ export function filterForCurrent(
 
 /**
  * Average all non-null values for each measurement field.
+ * Single pass: accumulates sums and counts for all fields simultaneously.
  */
 export function averageMeasurements(
   measurements: Measurement[],
 ): Partial<Measurement> {
-  if (measurements.length === 0) {
-    return {};
+  if (measurements.length === 0) return {};
+
+  const sums: Record<string, number> = {};
+  const counts: Record<string, number> = {};
+
+  for (const m of measurements) {
+    for (const field of MEASUREMENT_FIELDS) {
+      const value = m[field];
+      if (value != null) {
+        sums[field] = (sums[field] ?? 0) + value;
+        counts[field] = (counts[field] ?? 0) + 1;
+      }
+    }
   }
 
-  const avg = (values: (number | undefined | null)[]): number | undefined => {
-    const valid = values.filter((v): v is number => v != null);
-    if (valid.length === 0) return undefined;
-    return valid.reduce((a, b) => a + b, 0) / valid.length;
-  };
-
-  return {
-    // Core metrics
-    weight: avg(measurements.map((m) => m.weight)),
-    height: avg(measurements.map((m) => m.height)),
-
-    // Body fat circumferences
-    waistCirc: avg(measurements.map((m) => m.waistCirc)),
-    neckCirc: avg(measurements.map((m) => m.neckCirc)),
-    hipCirc: avg(measurements.map((m) => m.hipCirc)),
-
-    // Skinfolds
-    skinfoldChest: avg(measurements.map((m) => m.skinfoldChest)),
-    skinfoldAxilla: avg(measurements.map((m) => m.skinfoldAxilla)),
-    skinfoldTricep: avg(measurements.map((m) => m.skinfoldTricep)),
-    skinfoldSubscapular: avg(measurements.map((m) => m.skinfoldSubscapular)),
-    skinfoldAbdominal: avg(measurements.map((m) => m.skinfoldAbdominal)),
-    skinfoldSuprailiac: avg(measurements.map((m) => m.skinfoldSuprailiac)),
-    skinfoldThigh: avg(measurements.map((m) => m.skinfoldThigh)),
-    skinfoldBicep: avg(measurements.map((m) => m.skinfoldBicep)),
-
-    // Muscle circumferences
-    upperArmCirc: avg(measurements.map((m) => m.upperArmCirc)),
-    lowerArmCirc: avg(measurements.map((m) => m.lowerArmCirc)),
-    thighCirc: avg(measurements.map((m) => m.thighCirc)),
-    calfCirc: avg(measurements.map((m) => m.calfCirc)),
-    chestCirc: avg(measurements.map((m) => m.chestCirc)),
-    shoulderCirc: avg(measurements.map((m) => m.shoulderCirc)),
-
-    // Performance metrics
-    time5k: avg(measurements.map((m) => m.time5k)),
-    time1k: avg(measurements.map((m) => m.time1k)),
-    lMinO2: avg(measurements.map((m) => m.lMinO2)),
-    sKmAt129Bpm: avg(measurements.map((m) => m.sKmAt129Bpm)),
-    vo2max: avg(measurements.map((m) => m.vo2max)),
-  };
+  const result: Partial<Measurement> = {};
+  for (const field of MEASUREMENT_FIELDS) {
+    if (counts[field]) {
+      (result as Record<string, number>)[field] = sums[field] / counts[field];
+    }
+  }
+  return result;
 }
 
 /**
@@ -101,53 +154,7 @@ export function averageMeasurements(
 export function getUltimateMeasurement(
   measurements: Measurement[],
 ): Partial<Measurement> {
-  const sorted = [...measurements].sort((a, b) => b.date - a.date);
-
-  const ultimate = <T>(
-    getter: (m: Measurement) => T | undefined | null,
-  ): T | undefined => {
-    for (const m of sorted) {
-      const val = getter(m);
-      if (val != null) return val;
-    }
-    return undefined;
-  };
-
-  return {
-    // Core metrics
-    weight: ultimate((m) => m.weight),
-    height: ultimate((m) => m.height),
-
-    // Body fat circumferences
-    waistCirc: ultimate((m) => m.waistCirc),
-    neckCirc: ultimate((m) => m.neckCirc),
-    hipCirc: ultimate((m) => m.hipCirc),
-
-    // Skinfolds
-    skinfoldChest: ultimate((m) => m.skinfoldChest),
-    skinfoldAxilla: ultimate((m) => m.skinfoldAxilla),
-    skinfoldTricep: ultimate((m) => m.skinfoldTricep),
-    skinfoldSubscapular: ultimate((m) => m.skinfoldSubscapular),
-    skinfoldAbdominal: ultimate((m) => m.skinfoldAbdominal),
-    skinfoldSuprailiac: ultimate((m) => m.skinfoldSuprailiac),
-    skinfoldThigh: ultimate((m) => m.skinfoldThigh),
-    skinfoldBicep: ultimate((m) => m.skinfoldBicep),
-
-    // Muscle circumferences
-    upperArmCirc: ultimate((m) => m.upperArmCirc),
-    lowerArmCirc: ultimate((m) => m.lowerArmCirc),
-    thighCirc: ultimate((m) => m.thighCirc),
-    calfCirc: ultimate((m) => m.calfCirc),
-    chestCirc: ultimate((m) => m.chestCirc),
-    shoulderCirc: ultimate((m) => m.shoulderCirc),
-
-    // Performance metrics
-    time5k: ultimate((m) => m.time5k),
-    time1k: ultimate((m) => m.time1k),
-    lMinO2: ultimate((m) => m.lMinO2),
-    sKmAt129Bpm: ultimate((m) => m.sKmAt129Bpm),
-    vo2max: ultimate((m) => m.vo2max),
-  };
+  return extractNthValues(measurements, 0);
 }
 
 /**
@@ -156,50 +163,7 @@ export function getUltimateMeasurement(
 export function getPenultimateMeasurement(
   measurements: Measurement[],
 ): Partial<Measurement> {
-  const sorted = [...measurements].sort((a, b) => b.date - a.date);
-
-  const penultimate = <T>(
-    getter: (m: Measurement) => T | undefined | null,
-  ): T | undefined => {
-    const values = sorted.map(getter).filter((v): v is T => v != null);
-    return values.length >= 2 ? values[1] : undefined;
-  };
-
-  return {
-    // Core metrics
-    weight: penultimate((m) => m.weight),
-    height: penultimate((m) => m.height),
-
-    // Body fat circumferences
-    waistCirc: penultimate((m) => m.waistCirc),
-    neckCirc: penultimate((m) => m.neckCirc),
-    hipCirc: penultimate((m) => m.hipCirc),
-
-    // Skinfolds
-    skinfoldChest: penultimate((m) => m.skinfoldChest),
-    skinfoldAxilla: penultimate((m) => m.skinfoldAxilla),
-    skinfoldTricep: penultimate((m) => m.skinfoldTricep),
-    skinfoldSubscapular: penultimate((m) => m.skinfoldSubscapular),
-    skinfoldAbdominal: penultimate((m) => m.skinfoldAbdominal),
-    skinfoldSuprailiac: penultimate((m) => m.skinfoldSuprailiac),
-    skinfoldThigh: penultimate((m) => m.skinfoldThigh),
-    skinfoldBicep: penultimate((m) => m.skinfoldBicep),
-
-    // Muscle circumferences
-    upperArmCirc: penultimate((m) => m.upperArmCirc),
-    lowerArmCirc: penultimate((m) => m.lowerArmCirc),
-    thighCirc: penultimate((m) => m.thighCirc),
-    calfCirc: penultimate((m) => m.calfCirc),
-    chestCirc: penultimate((m) => m.chestCirc),
-    shoulderCirc: penultimate((m) => m.shoulderCirc),
-
-    // Performance metrics
-    time5k: penultimate((m) => m.time5k),
-    time1k: penultimate((m) => m.time1k),
-    lMinO2: penultimate((m) => m.lMinO2),
-    sKmAt129Bpm: penultimate((m) => m.sKmAt129Bpm),
-    vo2max: penultimate((m) => m.vo2max),
-  };
+  return extractNthValues(measurements, 1);
 }
 
 export interface CompositeResult {

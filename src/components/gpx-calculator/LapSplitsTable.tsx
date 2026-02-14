@@ -11,19 +11,44 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { LapSplit, formatTime, metersToFeet } from "@/lib/calculations/gpx";
 import { AlertTriangle } from "lucide-react";
+import { useGpxDisplay } from "./GpxDisplayContext";
 
 interface LapSplitsTableProps {
   lapSplits: LapSplit[];
-  lapInterval: string;
-  elevationUnit: "ft" | "m";
-  paceUnit: "km" | "mi";
 }
 
-export function LapSplitsTable({
-  lapSplits,
-  elevationUnit,
-  paceUnit,
-}: LapSplitsTableProps) {
+function getGradeColor(grade: number) {
+  const gradePercent = grade * 100;
+  if (gradePercent > 5) return "text-red-600";
+  if (gradePercent > 2) return "text-orange-500";
+  if (gradePercent > 0) return "text-yellow-600";
+  if (gradePercent > -2) return "text-muted-foreground";
+  if (gradePercent > -5) return "text-green-500";
+  return "text-green-600";
+}
+
+function getEffortBadgeVariant(
+  effort: string,
+): "default" | "secondary" | "destructive" | "outline" {
+  switch (effort) {
+    case "Very Hard":
+    case "Hard":
+      return "destructive";
+    case "Moderate":
+      return "default";
+    case "Easy":
+      return "secondary";
+    case "Fast":
+    case "Very Fast":
+      return "outline";
+    default:
+      return "secondary";
+  }
+}
+
+export function LapSplitsTable({ lapSplits }: LapSplitsTableProps) {
+  const { elevationUnit, paceUnit } = useGpxDisplay();
+
   const formatElevation = (meters: number) => {
     const value = elevationUnit === "ft" ? metersToFeet(meters) : meters;
     return `${value >= 0 ? "+" : ""}${value.toFixed(0)}`;
@@ -41,37 +66,6 @@ export function LapSplitsTable({
       return `${(meters / 1609.344).toFixed(2)} mi`;
     }
     return `${(meters / 1000).toFixed(2)} km`;
-  };
-
-  const getGradeColor = (grade: number) => {
-    const gradePercent = grade * 100;
-    if (gradePercent > 5) return "text-red-600";
-    if (gradePercent > 2) return "text-orange-500";
-    if (gradePercent > 0) return "text-yellow-600";
-    if (gradePercent > -2) return "text-muted-foreground";
-    if (gradePercent > -5) return "text-green-500";
-    return "text-green-600";
-  };
-
-  const getEffortBadgeVariant = (
-    effort: string,
-  ): "default" | "secondary" | "destructive" | "outline" => {
-    switch (effort) {
-      case "Very Hard":
-        return "destructive";
-      case "Hard":
-        return "destructive";
-      case "Moderate":
-        return "default";
-      case "Easy":
-        return "secondary";
-      case "Fast":
-        return "outline";
-      case "Very Fast":
-        return "outline";
-      default:
-        return "secondary";
-    }
   };
 
   return (

@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { auth } from "./auth";
+import { getUserIdOrThrow, getUserIdOrNull } from "./helpers";
 
 export const create = mutation({
   args: {
@@ -11,8 +11,7 @@ export const create = mutation({
     startValue: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getUserIdOrThrow(ctx);
 
     return await ctx.db.insert("goals", {
       userId,
@@ -39,14 +38,13 @@ export const update = mutation({
     startValue: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getUserIdOrThrow(ctx);
 
     const { id, ...updates } = args;
     const goal = await ctx.db.get(id);
 
     if (!goal || goal.userId !== userId) {
-      throw new Error("Goal not found");
+      throw new Error("Unauthorized");
     }
 
     await ctx.db.patch(id, updates);
@@ -57,12 +55,11 @@ export const update = mutation({
 export const complete = mutation({
   args: { id: v.id("goals") },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getUserIdOrThrow(ctx);
 
     const goal = await ctx.db.get(args.id);
     if (!goal || goal.userId !== userId) {
-      throw new Error("Goal not found");
+      throw new Error("Unauthorized");
     }
 
     await ctx.db.patch(args.id, { completed: true });
@@ -72,12 +69,11 @@ export const complete = mutation({
 export const setChartVisibility = mutation({
   args: { id: v.id("goals"), isVisible: v.boolean() },
   handler: async (ctx, { id, isVisible }) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getUserIdOrThrow(ctx);
 
     const goal = await ctx.db.get(id);
     if (!goal || goal.userId !== userId) {
-      throw new Error("Goal not found");
+      throw new Error("Unauthorized");
     }
 
     await ctx.db.patch(id, { isVisibleOnChart: isVisible });
@@ -87,12 +83,11 @@ export const setChartVisibility = mutation({
 export const remove = mutation({
   args: { id: v.id("goals") },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getUserIdOrThrow(ctx);
 
     const goal = await ctx.db.get(args.id);
     if (!goal || goal.userId !== userId) {
-      throw new Error("Goal not found");
+      throw new Error("Unauthorized");
     }
 
     await ctx.db.delete(args.id);
@@ -104,13 +99,13 @@ export const list = query({
     includeCompleted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
+    const userId = await getUserIdOrNull(ctx);
     if (!userId) return [];
 
     const goals = await ctx.db
       .query("goals")
       .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
+      .take(100);
 
     if (args.includeCompleted) {
       return goals;

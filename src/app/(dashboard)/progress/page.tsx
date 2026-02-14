@@ -30,6 +30,8 @@ import {
   calculateAllRangeDomain,
 } from "@/hooks/useDateRangeFilter";
 import { useProgressChartData } from "@/hooks/useProgressChartData";
+import type { ChartConfig } from "@/components/ui/chart";
+import type { ChartDataPoint } from "@/lib/calculations/chartData";
 
 const formatDate = (timestamp: number) =>
   new Date(timestamp).toLocaleDateString("en-US", {
@@ -43,6 +45,83 @@ const formatDateFull = (timestamp: number) =>
     day: "numeric",
     year: "numeric",
   });
+
+// Stable tooltip label formatter — extracted to avoid inline recreation
+function tooltipLabelFormatter(
+  _label: string,
+  payload: Array<{ payload?: { date?: number } }>,
+) {
+  return payload?.[0]?.payload?.date
+    ? formatDateFull(payload[0].payload.date)
+    : "";
+}
+
+const roundTick = (value: number) => String(Math.round(value));
+
+/** Reusable chart card — eliminates the 4x duplication of chart boilerplate. */
+function ProgressChart({
+  title,
+  description,
+  dataKey,
+  chartData,
+  chartConfig,
+  domain,
+  yDomain,
+}: {
+  title: string;
+  description: string;
+  dataKey: string;
+  chartData: ChartDataPoint[];
+  chartConfig: ChartConfig;
+  domain: [number, number];
+  yDomain: [string | number, string | number];
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ChartContainer config={chartConfig} className="h-64 w-full">
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis
+              dataKey="date"
+              type="number"
+              scale="time"
+              domain={domain}
+              tickFormatter={formatDate}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+            />
+            <YAxis
+              domain={yDomain}
+              tickFormatter={roundTick}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={8}
+            />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent labelFormatter={tooltipLabelFormatter} />
+              }
+            />
+            <Line
+              type="monotone"
+              dataKey={dataKey}
+              stroke={`var(--color-${dataKey})`}
+              strokeWidth={2}
+              dot={{ r: 4 }}
+              connectNulls
+            />
+          </LineChart>
+        </ChartContainer>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function ProgressPage() {
   const measurements = useQuery(api.measurements.list, { limit: 100 });
@@ -64,11 +143,10 @@ export default function ProgressPage() {
     filterMeasurements,
   } = useDateRangeFilter();
 
-  // Filter measurements and compute domain (handle "all" range specially)
-  const filteredMeasurements = useMemo(() => {
-    if (!measurements) return [];
-    return filterMeasurements(measurements);
-  }, [measurements, filterMeasurements]);
+  // Filter measurements
+  const filteredMeasurements = measurements
+    ? filterMeasurements(measurements)
+    : [];
 
   // Calculate domain - use measurements-based domain for "all" range
   const { domainStart, domainEnd } = useMemo(() => {
@@ -77,6 +155,12 @@ export default function ProgressPage() {
     }
     return { domainStart: hookDomainStart, domainEnd: hookDomainEnd };
   }, [dateRange, measurements, hookDomainStart, hookDomainEnd]);
+
+  // Stable domain tuple for chart XAxis
+  const domain = useMemo(
+    () => [domainStart, domainEnd] as [number, number],
+    [domainStart, domainEnd],
+  );
 
   // Chart data transformation
   const { chartData, chartConfig, weightYMin, isLoading } =
@@ -185,209 +269,42 @@ export default function ProgressPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Weight Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Weight</CardTitle>
-            <CardDescription>Body weight over time</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-64 w-full">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="date"
-                  type="number"
-                  scale="time"
-                  domain={[domainStart, domainEnd]}
-                  tickFormatter={formatDate}
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                />
-                <YAxis
-                  domain={[weightYMin ?? "dataMin - 2", "dataMax + 2"]}
-                  tickFormatter={(value) => String(Math.round(value))}
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      labelFormatter={(_, payload) =>
-                        payload?.[0]?.payload?.date
-                          ? formatDateFull(payload[0].payload.date)
-                          : ""
-                      }
-                    />
-                  }
-                />
-                <Line
-                  type="monotone"
-                  dataKey="weight"
-                  stroke="var(--color-weight)"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  connectNulls
-                />
-              </LineChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        {/* Body Fat Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Body Fat %</CardTitle>
-            <CardDescription>Estimated body fat percentage</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-64 w-full">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="date"
-                  type="number"
-                  scale="time"
-                  domain={[domainStart, domainEnd]}
-                  tickFormatter={formatDate}
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                />
-                <YAxis
-                  domain={["dataMin - 2", "dataMax + 2"]}
-                  tickFormatter={(value) => String(Math.round(value))}
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      labelFormatter={(_, payload) =>
-                        payload?.[0]?.payload?.date
-                          ? formatDateFull(payload[0].payload.date)
-                          : ""
-                      }
-                    />
-                  }
-                />
-                <Line
-                  type="monotone"
-                  dataKey="bodyFat"
-                  stroke="var(--color-bodyFat)"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  connectNulls
-                />
-              </LineChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        {/* FFMI Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>FFMI</CardTitle>
-            <CardDescription>Fat-Free Mass Index</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-64 w-full">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="date"
-                  type="number"
-                  scale="time"
-                  domain={[domainStart, domainEnd]}
-                  tickFormatter={formatDate}
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                />
-                <YAxis
-                  domain={["dataMin - 1", "dataMax + 1"]}
-                  tickFormatter={(value) => String(Math.round(value))}
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      labelFormatter={(_, payload) =>
-                        payload?.[0]?.payload?.date
-                          ? formatDateFull(payload[0].payload.date)
-                          : ""
-                      }
-                    />
-                  }
-                />
-                <Line
-                  type="monotone"
-                  dataKey="ffmi"
-                  stroke="var(--color-ffmi)"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  connectNulls
-                />
-              </LineChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        {/* VO2max Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>VO2max</CardTitle>
-            <CardDescription>Cardiovascular fitness</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-64 w-full">
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="date"
-                  type="number"
-                  scale="time"
-                  domain={[domainStart, domainEnd]}
-                  tickFormatter={formatDate}
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                />
-                <YAxis
-                  domain={["dataMin - 5", "dataMax + 5"]}
-                  tickFormatter={(value) => String(Math.round(value))}
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                />
-                <ChartTooltip
-                  content={
-                    <ChartTooltipContent
-                      labelFormatter={(_, payload) =>
-                        payload?.[0]?.payload?.date
-                          ? formatDateFull(payload[0].payload.date)
-                          : ""
-                      }
-                    />
-                  }
-                />
-                <Line
-                  type="monotone"
-                  dataKey="vo2max"
-                  stroke="var(--color-vo2max)"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  connectNulls
-                />
-              </LineChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
+        <ProgressChart
+          title="Weight"
+          description="Body weight over time"
+          dataKey="weight"
+          chartData={chartData}
+          chartConfig={chartConfig}
+          domain={domain}
+          yDomain={[weightYMin ?? "dataMin - 2", "dataMax + 2"]}
+        />
+        <ProgressChart
+          title="Body Fat %"
+          description="Estimated body fat percentage"
+          dataKey="bodyFat"
+          chartData={chartData}
+          chartConfig={chartConfig}
+          domain={domain}
+          yDomain={["dataMin - 2", "dataMax + 2"]}
+        />
+        <ProgressChart
+          title="FFMI"
+          description="Fat-Free Mass Index"
+          dataKey="ffmi"
+          chartData={chartData}
+          chartConfig={chartConfig}
+          domain={domain}
+          yDomain={["dataMin - 1", "dataMax + 1"]}
+        />
+        <ProgressChart
+          title="VO2max"
+          description="Cardiovascular fitness"
+          dataKey="vo2max"
+          chartData={chartData}
+          chartConfig={chartConfig}
+          domain={domain}
+          yDomain={["dataMin - 5", "dataMax + 5"]}
+        />
       </div>
     </div>
   );

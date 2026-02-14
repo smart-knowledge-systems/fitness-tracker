@@ -99,11 +99,14 @@ export const BIDIRECTIONAL_METRICS: Record<string, BidirectionalConfig> = {
   chestCirc: { increase: "Increase size", decrease: "Decrease size" },
 };
 
+/** Set of metrics that support bidirectional goals (O(1) lookups). */
+const BIDIRECTIONAL_METRIC_SET = new Set(Object.keys(BIDIRECTIONAL_METRICS));
+
 /**
  * Check if a metric supports bidirectional goals.
  */
 export function isBidirectionalMetric(metric: string): boolean {
-  return metric in BIDIRECTIONAL_METRICS;
+  return BIDIRECTIONAL_METRIC_SET.has(metric);
 }
 
 /**
@@ -117,8 +120,8 @@ export function getDefaultDirection(
   return option?.direction ?? "decrease";
 }
 
-const WEIGHT_METRICS = ["weight", "leanMass"];
-const LENGTH_METRICS = ["upperArmCirc", "chestCirc", "waistCirc"];
+const WEIGHT_METRICS = new Set(["weight", "leanMass"]);
+const LENGTH_METRICS = new Set(["upperArmCirc", "chestCirc", "waistCirc"]);
 
 /**
  * Convert goal value to metric units for storage.
@@ -129,10 +132,10 @@ export function convertGoalValueForStorage(
   weightUnit: WeightUnit,
   lengthUnit: LengthUnit,
 ): number {
-  if (WEIGHT_METRICS.includes(metricType)) {
+  if (WEIGHT_METRICS.has(metricType)) {
     return convertWeightForStorage(value, weightUnit);
   }
-  if (LENGTH_METRICS.includes(metricType)) {
+  if (LENGTH_METRICS.has(metricType)) {
     return convertLengthForStorage(value, lengthUnit);
   }
   return value; // No conversion needed for %, seconds, VO2max, FFMI

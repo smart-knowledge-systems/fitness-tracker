@@ -52,15 +52,15 @@ export function useGoalProjections(
     return projections;
   }, [goals, measurements, profile]);
 
-  const activeGoals = useMemo(
-    () => goals?.filter((g) => !g.completed) ?? [],
-    [goals],
-  );
-
-  const completedGoals = useMemo(
-    () => goals?.filter((g) => g.completed) ?? [],
-    [goals],
-  );
+  // Single pass to partition goals into active and completed
+  const { activeGoals, completedGoals } = useMemo(() => {
+    const active: Goal[] = [];
+    const completed: Goal[] = [];
+    for (const g of goals ?? []) {
+      (g.completed ? completed : active).push(g);
+    }
+    return { activeGoals: active, completedGoals: completed };
+  }, [goals]);
 
   return {
     goalProjections,

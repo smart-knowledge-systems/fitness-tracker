@@ -8,18 +8,16 @@ import {
   formatTime,
   metersToFeet,
 } from "@/lib/calculations/gpx";
+import { useGpxDisplay } from "./GpxDisplayContext";
 
 interface RouteSummaryProps {
   result: LapCalculatorResult;
-  elevationUnit: "ft" | "m";
   onDownloadCSV: () => void;
 }
 
-export function RouteSummary({
-  result,
-  elevationUnit,
-  onDownloadCSV,
-}: RouteSummaryProps) {
+export function RouteSummary({ result, onDownloadCSV }: RouteSummaryProps) {
+  const { elevationUnit } = useGpxDisplay();
+
   const formatElevation = (meters: number) => {
     const value = elevationUnit === "ft" ? metersToFeet(meters) : meters;
     return `${value.toFixed(0)} ${elevationUnit}`;

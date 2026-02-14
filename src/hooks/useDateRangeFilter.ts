@@ -118,20 +118,24 @@ export function useDateRangeFilter(
   }, [dateRange, customStart, customEnd, now]);
 
   // Filter measurements by date range
+  // Dependencies use primitive timestamps to avoid recreating on Date object identity changes
+  const customStartTime = customStart?.getTime();
+  const customEndTime = customEnd?.getTime();
+
   const filterMeasurements = useCallback(
     <T extends { date: number }>(measurements: T[]): T[] => {
       if (dateRange === "all") return measurements;
       if (dateRange === "custom") {
         return measurements.filter(
           (m) =>
-            (!customStart || m.date >= customStart.getTime()) &&
-            (!customEnd || m.date <= customEnd.getTime() + 24 * 60 * 60 * 1000),
+            (!customStartTime || m.date >= customStartTime) &&
+            (!customEndTime || m.date <= customEndTime + 24 * 60 * 60 * 1000),
         );
       }
       const cutoff = now - (DATE_RANGES[dateRange] ?? 60) * 24 * 60 * 60 * 1000;
       return measurements.filter((m) => m.date >= cutoff);
     },
-    [dateRange, customStart, customEnd, now],
+    [dateRange, customStartTime, customEndTime, now],
   );
 
   return {
@@ -159,6 +163,13 @@ export function calculateAllRangeDomain(measurements: { date: number }[]): {
     const now = Date.now();
     return { domainStart: now - 60 * 24 * 60 * 60 * 1000, domainEnd: now };
   }
-  const dates = measurements.map((m) => m.date);
-  return { domainStart: Math.min(...dates), domainEnd: Math.max(...dates) };
+  // Single-pass min/max avoids spread operator stack overflow on large arrays
+  let minDate = measurements[0].date;
+  let maxDate = measurements[0].date;
+  for (let i = 1; i < measurements.length; i++) {
+    const d = measurements[i].date;
+    if (d < minDate) minDate = d;
+    if (d > maxDate) maxDate = d;
+  }
+  return { domainStart: minDate, domainEnd: maxDate };
 }

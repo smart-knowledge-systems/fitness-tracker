@@ -12,9 +12,21 @@ export function toLocalDateString(date: Date): string {
 /**
  * Parse a YYYY-MM-DD string as local midnight and return timestamp.
  * Unlike new Date(str).getTime(), this interprets the date in local timezone.
+ * Returns NaN if the date string is malformed or has out-of-range components.
  */
 export function localDateStringToTimestamp(dateStr: string): number {
-  const [year, month, day] = dateStr.split("-").map(Number);
+  const parts = dateStr.split("-").map(Number);
+  if (
+    parts.length !== 3 ||
+    parts.some(isNaN) ||
+    parts[1] < 1 ||
+    parts[1] > 12 ||
+    parts[2] < 1 ||
+    parts[2] > 31
+  ) {
+    return NaN;
+  }
+  const [year, month, day] = parts;
   return new Date(year, month - 1, day).getTime();
 }
 

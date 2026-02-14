@@ -32,7 +32,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Trash2, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { AddMeasurementDialog } from "@/components/measurements";
-import { averageBodyFat } from "@/lib/calculations";
+import { weightedAverageBodyFat } from "@/lib/calculations";
 import {
   convertWeightForDisplay,
   convertLengthForDisplay,
@@ -40,6 +40,13 @@ import {
   type LengthUnit,
 } from "@/lib/unitConversion";
 import type { Id } from "@/convex/_generated/dataModel";
+
+function formatTime(seconds: number | undefined) {
+  if (!seconds) return null;
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
 
 export default function MeasurementsPage() {
   const measurements = useQuery(api.measurements.list, { limit: 100 });
@@ -55,6 +62,9 @@ export default function MeasurementsPage() {
   const [viewMeasurement, setViewMeasurement] = useState<
     NonNullable<typeof measurements>[number] | null
   >(null);
+
+  const clearDeleteId = useCallback(() => setDeleteId(null), []);
+  const clearViewMeasurement = useCallback(() => setViewMeasurement(null), []);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -80,11 +90,14 @@ export default function MeasurementsPage() {
     );
   }, [userProfile?.birthDate, now]);
 
+  const profileSex = userProfile?.sex;
+  const profileHeight = userProfile?.height;
+
   const calculateBodyFat = useCallback(
     (measurement: NonNullable<typeof measurements>[0]) => {
-      if (!userProfile) return null;
+      if (!profileSex || !profileHeight) return null;
 
-      const result = averageBodyFat(
+      const result = weightedAverageBodyFat(
         {
           chest: measurement.skinfoldChest,
           axilla: measurement.skinfoldAxilla,
@@ -99,23 +112,16 @@ export default function MeasurementsPage() {
           waist: measurement.waistCirc,
           neck: measurement.neckCirc,
           hip: measurement.hipCirc,
-          height: measurement.height ?? userProfile.height,
+          height: measurement.height ?? profileHeight,
         },
         age,
-        userProfile.sex,
+        profileSex,
       );
 
-      return result.average;
+      return result.weighted;
     },
-    [userProfile, age],
+    [profileSex, profileHeight, age],
   );
-
-  const formatTime = (seconds: number | undefined) => {
-    if (!seconds) return null;
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
 
   return (
     <div className="space-y-6">
@@ -235,7 +241,7 @@ export default function MeasurementsPage() {
       <AddMeasurementDialog open={showAddForm} onOpenChange={setShowAddForm} />
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+      <Dialog open={!!deleteId} onOpenChange={clearDeleteId}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Measurement</DialogTitle>
@@ -245,7 +251,7 @@ export default function MeasurementsPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteId(null)}>
+            <Button variant="outline" onClick={clearDeleteId}>
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleDelete}>
@@ -256,10 +262,7 @@ export default function MeasurementsPage() {
       </Dialog>
 
       {/* View Measurement Dialog */}
-      <Dialog
-        open={!!viewMeasurement}
-        onOpenChange={() => setViewMeasurement(null)}
-      >
+      <Dialog open={!!viewMeasurement} onOpenChange={clearViewMeasurement}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>

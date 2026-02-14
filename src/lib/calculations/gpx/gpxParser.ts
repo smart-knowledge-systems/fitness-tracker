@@ -348,10 +348,11 @@ export class GPXParser {
       }
     }
 
-    // Calculate smoothed min/max from the collected grades
-    if (smoothedGrades.length > 0) {
-      smoothedMaxGrade = Math.max(...smoothedGrades);
-      smoothedMinGrade = Math.min(...smoothedGrades);
+    // Calculate smoothed min/max from the collected grades using a loop
+    // (avoids call stack overflow with Math.max(...largeArray) on long routes)
+    for (const g of smoothedGrades) {
+      if (g > smoothedMaxGrade) smoothedMaxGrade = g;
+      if (g < smoothedMinGrade) smoothedMinGrade = g;
     }
 
     return {

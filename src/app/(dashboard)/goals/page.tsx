@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { type WeightUnit, type LengthUnit } from "@/lib/unitConversion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,10 +56,7 @@ export default function GoalsPage() {
   const lengthUnit: LengthUnit = userProfile?.lengthUnit ?? "cm";
 
   // Dynamic metric options based on unit preferences
-  const metricOptions = useMemo(
-    () => buildMetricOptions(weightUnit, lengthUnit),
-    [weightUnit, lengthUnit],
-  );
+  const metricOptions = buildMetricOptions(weightUnit, lengthUnit);
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [metric, setMetric] = useState("");
@@ -329,7 +326,10 @@ export default function GoalsPage() {
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting || !metric}>
+              <Button
+                type="submit"
+                disabled={isSubmitting || !metric || isLoading}
+              >
                 Create Goal
               </Button>
             </DialogFooter>

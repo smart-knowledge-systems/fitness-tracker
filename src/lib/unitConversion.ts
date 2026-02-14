@@ -39,6 +39,8 @@ export function cmToInches(cm: number): number {
   return Math.round(inches * 4) / 4;
 }
 
+const QUARTER_EPSILON = 1e-10;
+
 /**
  * Format inches as fractional string (e.g., "32 1/4", "32 1/2", "32 3/4", "33")
  */
@@ -47,17 +49,21 @@ export function formatFractionalInches(inches: number): string {
   const whole = Math.floor(rounded);
   const fraction = rounded - whole;
 
-  if (fraction === 0) {
+  if (Math.abs(fraction) < QUARTER_EPSILON) {
     return whole.toString();
-  } else if (fraction === 0.25) {
+  } else if (Math.abs(fraction - 0.25) < QUARTER_EPSILON) {
     return `${whole} 1/4`;
-  } else if (fraction === 0.5) {
+  } else if (Math.abs(fraction - 0.5) < QUARTER_EPSILON) {
     return `${whole} 1/2`;
-  } else if (fraction === 0.75) {
+  } else if (Math.abs(fraction - 0.75) < QUARTER_EPSILON) {
     return `${whole} 3/4`;
   }
   return rounded.toString();
 }
+
+// Hoisted regex patterns for parseFractionalInches
+const WHOLE_AND_FRACTION_RE = /^(\d+(?:\.\d+)?)\s+(\d+)\/(\d+)$/;
+const FRACTION_ONLY_RE = /^(\d+)\/(\d+)$/;
 
 /**
  * Parse fractional inches string back to decimal (e.g., "32 1/4" -> 32.25)
@@ -72,7 +78,7 @@ export function parseFractionalInches(str: string): number | undefined {
   }
 
   // Parse fractional format like "32 1/4"
-  const match = trimmed.match(/^(\d+(?:\.\d+)?)\s+(\d+)\/(\d+)$/);
+  const match = trimmed.match(WHOLE_AND_FRACTION_RE);
   if (match) {
     const whole = parseFloat(match[1]);
     const numerator = parseInt(match[2], 10);
@@ -88,7 +94,7 @@ export function parseFractionalInches(str: string): number | undefined {
   }
 
   // Try parsing just a fraction like "1/4"
-  const fractionMatch = trimmed.match(/^(\d+)\/(\d+)$/);
+  const fractionMatch = trimmed.match(FRACTION_ONLY_RE);
   if (fractionMatch) {
     const numerator = parseInt(fractionMatch[1], 10);
     const denominator = parseInt(fractionMatch[2], 10);

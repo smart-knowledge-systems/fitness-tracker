@@ -18,24 +18,64 @@ export interface FormatContext {
   lengthUnit: LengthUnit;
 }
 
+/** Metrics whose values are time durations in seconds. */
+const TIME_METRICS = new Set(["time5k", "time1k"]);
+/** Metrics whose values are stored in kg. */
+const WEIGHT_METRICS = new Set(["weight", "leanMass"]);
+/** Metrics whose values are stored in cm. */
+const LENGTH_METRICS = new Set(["waistCirc", "upperArmCirc", "chestCirc"]);
+
+/**
+ * Convert a daily rate to a weekly rate, applying unit conversion when needed.
+ */
+function toWeeklyRate(
+  dailyRate: number,
+  metric: string,
+  context: FormatContext,
+): { value: number; unit: string } {
+  if (TIME_METRICS.has(metric)) {
+    return { value: dailyRate * 7, unit: "s/week" };
+  }
+  if (WEIGHT_METRICS.has(metric)) {
+    const converted = convertWeightForDisplay(
+      dailyRate * 7,
+      context.weightUnit,
+    );
+    return { value: converted, unit: `${context.weightUnit}/week` };
+  }
+  if (LENGTH_METRICS.has(metric)) {
+    const converted = convertLengthForDisplay(
+      dailyRate * 7,
+      context.lengthUnit,
+    );
+    return { value: converted, unit: `${context.lengthUnit}/week` };
+  }
+  if (metric === "bodyFat") {
+    return { value: dailyRate * 7, unit: "%/week" };
+  }
+  if (metric === "vo2max") {
+    return { value: dailyRate * 7, unit: "mL/kg/min per week" };
+  }
+  if (metric === "ffmi") {
+    return { value: dailyRate * 7, unit: "/week" };
+  }
+  return { value: dailyRate, unit: "/day" };
+}
+
 /**
  * Format a goal value based on metric type.
  */
 export function formatGoalValue(value: number, context: FormatContext): string {
   const { metric, weightUnit, lengthUnit } = context;
 
-  if (metric === "time5k" || metric === "time1k") {
+  if (TIME_METRICS.has(metric)) {
     return formatTime(value);
   }
-  if (metric === "weight" || metric === "leanMass") {
+  if (WEIGHT_METRICS.has(metric)) {
     const converted = convertWeightForDisplay(value, weightUnit);
     return `${converted.toFixed(1)} ${weightUnit}`;
   }
-  if (
-    metric === "waistCirc" ||
-    metric === "upperArmCirc" ||
-    metric === "chestCirc"
-  ) {
+  if (LENGTH_METRICS.has(metric)) {
     const converted = convertLengthForDisplay(value, lengthUnit);
     return `${converted.toFixed(1)} ${lengthUnit}`;
   }
@@ -52,25 +92,15 @@ export function formatGoalValue(value: number, context: FormatContext): string {
  * Format rate (change per day) based on metric type.
  */
 export function formatGoalRate(rate: number, context: FormatContext): string {
-  const { metric, weightUnit } = context;
   const absRate = Math.abs(rate);
   const sign = rate >= 0 ? "+" : "-";
 
-  if (metric === "time5k" || metric === "time1k") {
-    const secsPerWeek = absRate * 7;
-    return `${sign}${secsPerWeek.toFixed(0)}s/week`;
+  const weekly = toWeeklyRate(absRate, context.metric, context);
+
+  if (TIME_METRICS.has(context.metric)) {
+    return `${sign}${weekly.value.toFixed(0)}${weekly.unit}`;
   }
-  if (metric === "weight" || metric === "leanMass") {
-    const weeklyRate = absRate * 7;
-    const converted = weightUnit === "lbs" ? weeklyRate * 2.20462 : weeklyRate;
-    return `${sign}${converted.toFixed(2)} ${weightUnit}/week`;
-  }
-  if (metric === "bodyFat") {
-    const weeklyRate = absRate * 7;
-    return `${sign}${weeklyRate.toFixed(2)}%/week`;
-  }
-  // Default: show daily rate
-  return `${sign}${absRate.toFixed(2)}/day`;
+  return `${sign}${weekly.value.toFixed(2)} ${weekly.unit}`;
 }
 
 /**
@@ -130,11 +160,10 @@ export function getGoalStatus(
     };
   }
   switch (projection.rateDirection) {
-    case "improving":
-      if (
-        goal.targetDate &&
-        projection.projectedDate.getTime() > goal.targetDate
-      ) {
+    case "improving": {
+      // goal.targetDate is a timestamp (number), so compare directly
+      const projectedTimestamp = projection.projectedDate.getTime();
+      if (goal.targetDate && projectedTimestamp > goal.targetDate) {
         return { variant: "outline", label: "Improving" };
       }
       return {
@@ -142,6 +171,7 @@ export function getGoalStatus(
         label: "On track",
         colorClass: "bg-green-500",
       };
+    }
     case "stalled":
       return {
         variant: "default",
@@ -179,10 +209,7 @@ export function getTrendConfig(
     projection.rateDirection === "improving"
       ? "text-green-500"
       : "text-yellow-500";
+  const direction: TrendDirection = projection.rate > 0 ? "up" : "down";
 
-  // Icon based on numerical direction (rate > 0 means value increasing)
-  if (projection.rate > 0) {
-    return { direction: "up", colorClass };
-  }
-  return { direction: "down", colorClass };
+  return { direction, colorClass };
 }

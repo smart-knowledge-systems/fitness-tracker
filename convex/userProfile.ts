@@ -1,11 +1,15 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { auth } from "./auth";
+import {
+  getUserIdOrThrow,
+  getUserIdOrNull,
+  getUserProfileOrThrow,
+} from "./helpers";
 
 export const get = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await auth.getUserId(ctx);
+    const userId = await getUserIdOrNull(ctx);
     if (!userId) return null;
 
     const profile = await ctx.db
@@ -27,8 +31,7 @@ export const upsert = mutation({
     lengthUnit: v.optional(v.union(v.literal("cm"), v.literal("in"))),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
+    const userId = await getUserIdOrThrow(ctx);
 
     const existing = await ctx.db
       .query("userProfiles")
@@ -53,18 +56,9 @@ export const updateUnitPreferences = mutation({
     lengthUnit: v.optional(v.union(v.literal("cm"), v.literal("in"))),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
-
-    const existing = await ctx.db
-      .query("userProfiles")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .unique();
-
-    if (!existing) throw new Error("Profile not found");
-
-    await ctx.db.patch(existing._id, args);
-    return existing._id;
+    const { profile } = await getUserProfileOrThrow(ctx);
+    await ctx.db.patch(profile._id, args);
+    return profile._id;
   },
 });
 
@@ -73,17 +67,8 @@ export const updateTheme = mutation({
     theme: v.union(v.literal("light"), v.literal("dark"), v.literal("system")),
   },
   handler: async (ctx, args) => {
-    const userId = await auth.getUserId(ctx);
-    if (!userId) throw new Error("Not authenticated");
-
-    const existing = await ctx.db
-      .query("userProfiles")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .unique();
-
-    if (!existing) throw new Error("Profile not found");
-
-    await ctx.db.patch(existing._id, { theme: args.theme });
-    return existing._id;
+    const { profile } = await getUserProfileOrThrow(ctx);
+    await ctx.db.patch(profile._id, { theme: args.theme });
+    return profile._id;
   },
 });

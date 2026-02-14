@@ -14,12 +14,36 @@ export interface SkinfoldValues {
   thigh: string;
 }
 
+type SkinfoldField = keyof SkinfoldValues;
+
 interface SkinfoldsSectionProps {
   values: SkinfoldValues;
-  onChange: (field: keyof SkinfoldValues, value: string) => void;
+  onChange: (field: SkinfoldField, value: string) => void;
   /** Show description text about mm units */
   showDescription?: boolean;
 }
+
+const fieldLabels: Record<SkinfoldField, string> = {
+  chest: "Chest",
+  axilla: "Axilla",
+  tricep: "Tricep",
+  bicep: "Bicep",
+  subscapular: "Subscapular",
+  abdominal: "Abdominal",
+  suprailiac: "Suprailiac",
+  thigh: "Thigh",
+};
+
+const allFields: SkinfoldField[] = [
+  "chest",
+  "axilla",
+  "tricep",
+  "bicep",
+  "subscapular",
+  "abdominal",
+  "suprailiac",
+  "thigh",
+];
 
 export function SkinfoldsSection({
   values,
@@ -34,86 +58,20 @@ export function SkinfoldsSection({
         </p>
       )}
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="skinfoldChest">Chest</Label>
-          <Input
-            id="skinfoldChest"
-            type="number"
-            step="0.5"
-            value={values.chest}
-            onChange={(e) => onChange("chest", e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="skinfoldAxilla">Axilla</Label>
-          <Input
-            id="skinfoldAxilla"
-            type="number"
-            step="0.5"
-            value={values.axilla}
-            onChange={(e) => onChange("axilla", e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="skinfoldTricep">Tricep</Label>
-          <Input
-            id="skinfoldTricep"
-            type="number"
-            step="0.5"
-            value={values.tricep}
-            onChange={(e) => onChange("tricep", e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="skinfoldBicep">Bicep</Label>
-          <Input
-            id="skinfoldBicep"
-            type="number"
-            step="0.5"
-            value={values.bicep}
-            onChange={(e) => onChange("bicep", e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="skinfoldSubscapular">Subscapular</Label>
-          <Input
-            id="skinfoldSubscapular"
-            type="number"
-            step="0.5"
-            value={values.subscapular}
-            onChange={(e) => onChange("subscapular", e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="skinfoldAbdominal">Abdominal</Label>
-          <Input
-            id="skinfoldAbdominal"
-            type="number"
-            step="0.5"
-            value={values.abdominal}
-            onChange={(e) => onChange("abdominal", e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="skinfoldSuprailiac">Suprailiac</Label>
-          <Input
-            id="skinfoldSuprailiac"
-            type="number"
-            step="0.5"
-            value={values.suprailiac}
-            onChange={(e) => onChange("suprailiac", e.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="skinfoldThigh">Thigh</Label>
-          <Input
-            id="skinfoldThigh"
-            type="number"
-            step="0.5"
-            value={values.thigh}
-            onChange={(e) => onChange("thigh", e.target.value)}
-          />
-        </div>
+        {allFields.map((field) => (
+          <div key={field} className="space-y-2">
+            <Label htmlFor={`skinfold${fieldLabels[field]}`}>
+              {fieldLabels[field]}
+            </Label>
+            <Input
+              id={`skinfold${fieldLabels[field]}`}
+              type="number"
+              step="0.5"
+              value={values[field]}
+              onChange={(e) => onChange(field, e.target.value)}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );

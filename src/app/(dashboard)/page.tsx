@@ -22,6 +22,35 @@ import {
 import { convertWeightForDisplay, type WeightUnit } from "@/lib/unitConversion";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 
+function getChangeColor(change: number) {
+  if (change > 0) return "text-green-500";
+  if (change < 0) return "text-red-500";
+  return "text-muted-foreground";
+}
+
+function ChangeIcon({ change }: { change: number }) {
+  const color = getChangeColor(change);
+  const className = `mr-1 h-4 w-4 ${color}`;
+
+  if (change > 0) return <TrendingUp className={className} />;
+  if (change < 0) return <TrendingDown className={className} />;
+  return <Minus className={className} />;
+}
+
+function StatCardSkeleton({ title }: { title: string }) {
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardDescription>{title}</CardDescription>
+        <Skeleton className="h-8 w-24" />
+      </CardHeader>
+      <CardContent>
+        <Skeleton className="h-4 w-16" />
+      </CardContent>
+    </Card>
+  );
+}
+
 function StatCard({
   title,
   value,
@@ -36,17 +65,7 @@ function StatCard({
   loading?: boolean;
 }) {
   if (loading) {
-    return (
-      <Card>
-        <CardHeader className="pb-2">
-          <CardDescription>{title}</CardDescription>
-          <Skeleton className="h-8 w-24" />
-        </CardHeader>
-        <CardContent>
-          <Skeleton className="h-4 w-16" />
-        </CardContent>
-      </Card>
-    );
+    return <StatCardSkeleton title={title} />;
   }
 
   return (
@@ -69,22 +88,8 @@ function StatCard({
       <CardContent>
         {change !== null && change !== undefined ? (
           <div className="flex items-center text-sm">
-            {change > 0 ? (
-              <TrendingUp className="mr-1 h-4 w-4 text-green-500" />
-            ) : change < 0 ? (
-              <TrendingDown className="mr-1 h-4 w-4 text-red-500" />
-            ) : (
-              <Minus className="mr-1 h-4 w-4 text-muted-foreground" />
-            )}
-            <span
-              className={
-                change > 0
-                  ? "text-green-500"
-                  : change < 0
-                    ? "text-red-500"
-                    : "text-muted-foreground"
-              }
-            >
+            <ChangeIcon change={change} />
+            <span className={getChangeColor(change)}>
               {change > 0 ? "+" : ""}
               {change.toFixed(1)} {unit}
             </span>
@@ -99,7 +104,7 @@ function StatCard({
 }
 
 export default function DashboardPage() {
-  const measurements = useQuery(api.measurements.list, { limit: 10 });
+  const measurements = useQuery(api.measurements.list, { limit: 5 });
   const userProfile = useQuery(api.userProfile.get);
 
   const [showAddForm, setShowAddForm] = useState(false);
@@ -218,7 +223,7 @@ export default function DashboardPage() {
               </p>
             ) : (
               <div className="space-y-2">
-                {measurements.slice(0, 5).map((m) => (
+                {measurements.map((m) => (
                   <div
                     key={m._id}
                     className="flex items-center justify-between rounded-lg border p-3"

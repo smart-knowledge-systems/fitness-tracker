@@ -1,8 +1,10 @@
 const authConfig = {
   providers: [
     {
-      domain: process.env.CONVEX_SITE_URL,
-      applicationID: "convex",
+      type: "customJwt" as const,
+      issuer: "https://shoo.dev",
+      jwks: "https://shoo.dev/.well-known/jwks.json",
+      algorithm: "ES256" as const,
     },
   ],
 };

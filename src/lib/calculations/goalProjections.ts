@@ -10,8 +10,13 @@
 
 import { subWeeks } from "date-fns";
 import type { Doc } from "@/convex/_generated/dataModel";
-import { averageBodyFat } from "./bodyFat";
+import {
+  weightedAverageBodyFat,
+  type SkinfoldMeasurements,
+  type CircumferenceMeasurements,
+} from "./bodyFat";
 import { calculateFFMI, calculateLeanMass } from "./fitness";
+import { calculateAge } from "./ageUtils";
 
 // Types
 export type GoalDirection = "increase" | "decrease";
@@ -68,6 +73,50 @@ export interface WiggleDataPoint {
   currentValue: number;
 }
 
+// --- Shared helpers for body-fat-derived metrics ---
+
+/** Build skinfold measurement object from a raw measurement record. */
+function buildSkinfolds(m: Doc<"measurements">): SkinfoldMeasurements {
+  return {
+    chest: m.skinfoldChest,
+    axilla: m.skinfoldAxilla,
+    tricep: m.skinfoldTricep,
+    subscapular: m.skinfoldSubscapular,
+    abdominal: m.skinfoldAbdominal,
+    suprailiac: m.skinfoldSuprailiac,
+    thigh: m.skinfoldThigh,
+    bicep: m.skinfoldBicep,
+  };
+}
+
+/** Build circumference measurement object from a raw measurement + profile height fallback. */
+function buildCircumferences(
+  m: Doc<"measurements">,
+  profileHeight: number,
+): Partial<CircumferenceMeasurements> {
+  return {
+    waist: m.waistCirc,
+    neck: m.neckCirc,
+    hip: m.hipCirc,
+    height: m.height ?? profileHeight,
+  };
+}
+
+/** Calculate weighted body fat % for a measurement, or null if insufficient data. */
+function getBodyFatPercent(
+  m: Doc<"measurements">,
+  profile: Doc<"userProfiles">,
+): number | null {
+  const age = calculateAge(profile.birthDate, m.date);
+  const result = weightedAverageBodyFat(
+    buildSkinfolds(m),
+    buildCircumferences(m, profile.height),
+    age,
+    profile.sex,
+  );
+  return result.weighted;
+}
+
 // Metric configurations
 export const METRIC_CONFIG: Record<string, MetricConfig> = {
   weight: {
@@ -82,32 +131,7 @@ export const METRIC_CONFIG: Record<string, MetricConfig> = {
     unit: "%",
     getValue: (m, profile) => {
       if (!profile) return null;
-      const age = profile.birthDate
-        ? Math.floor(
-            (m.date - profile.birthDate) / (365.25 * 24 * 60 * 60 * 1000),
-          )
-        : 30;
-      const bf = averageBodyFat(
-        {
-          chest: m.skinfoldChest,
-          axilla: m.skinfoldAxilla,
-          tricep: m.skinfoldTricep,
-          subscapular: m.skinfoldSubscapular,
-          abdominal: m.skinfoldAbdominal,
-          suprailiac: m.skinfoldSuprailiac,
-          thigh: m.skinfoldThigh,
-          bicep: m.skinfoldBicep,
-        },
-        {
-          waist: m.waistCirc,
-          neck: m.neckCirc,
-          hip: m.hipCirc,
-          height: m.height ?? profile.height,
-        },
-        age,
-        profile.sex,
-      );
-      return bf.average;
+      return getBodyFatPercent(m, profile);
     },
   },
   vo2max: {
@@ -134,33 +158,9 @@ export const METRIC_CONFIG: Record<string, MetricConfig> = {
     unit: "kg",
     getValue: (m, profile) => {
       if (!m.weight || !profile) return null;
-      const age = profile.birthDate
-        ? Math.floor(
-            (m.date - profile.birthDate) / (365.25 * 24 * 60 * 60 * 1000),
-          )
-        : 30;
-      const bf = averageBodyFat(
-        {
-          chest: m.skinfoldChest,
-          axilla: m.skinfoldAxilla,
-          tricep: m.skinfoldTricep,
-          subscapular: m.skinfoldSubscapular,
-          abdominal: m.skinfoldAbdominal,
-          suprailiac: m.skinfoldSuprailiac,
-          thigh: m.skinfoldThigh,
-          bicep: m.skinfoldBicep,
-        },
-        {
-          waist: m.waistCirc,
-          neck: m.neckCirc,
-          hip: m.hipCirc,
-          height: m.height ?? profile.height,
-        },
-        age,
-        profile.sex,
-      );
-      if (bf.average === null) return null;
-      return calculateLeanMass(m.weight, bf.average);
+      const bf = getBodyFatPercent(m, profile);
+      if (bf === null) return null;
+      return calculateLeanMass(m.weight, bf);
     },
   },
   ffmi: {
@@ -169,37 +169,9 @@ export const METRIC_CONFIG: Record<string, MetricConfig> = {
     unit: "",
     getValue: (m, profile) => {
       if (!m.weight || !profile) return null;
-      const age = profile.birthDate
-        ? Math.floor(
-            (m.date - profile.birthDate) / (365.25 * 24 * 60 * 60 * 1000),
-          )
-        : 30;
-      const bf = averageBodyFat(
-        {
-          chest: m.skinfoldChest,
-          axilla: m.skinfoldAxilla,
-          tricep: m.skinfoldTricep,
-          subscapular: m.skinfoldSubscapular,
-          abdominal: m.skinfoldAbdominal,
-          suprailiac: m.skinfoldSuprailiac,
-          thigh: m.skinfoldThigh,
-          bicep: m.skinfoldBicep,
-        },
-        {
-          waist: m.waistCirc,
-          neck: m.neckCirc,
-          hip: m.hipCirc,
-          height: m.height ?? profile.height,
-        },
-        age,
-        profile.sex,
-      );
-      if (bf.average === null) return null;
-      const result = calculateFFMI(
-        m.weight,
-        m.height ?? profile.height,
-        bf.average,
-      );
+      const bf = getBodyFatPercent(m, profile);
+      if (bf === null) return null;
+      const result = calculateFFMI(m.weight, m.height ?? profile.height, bf);
       return result.ffmi;
     },
   },
@@ -246,8 +218,12 @@ export function calculateRate(
   }));
 
   // Calculate means
-  const sumX = points.reduce((sum, p) => sum + p.x, 0);
-  const sumY = points.reduce((sum, p) => sum + p.y, 0);
+  let sumX = 0;
+  let sumY = 0;
+  for (const p of points) {
+    sumX += p.x;
+    sumY += p.y;
+  }
   const meanX = sumX / n;
   const meanY = sumY / n;
 
@@ -342,14 +318,12 @@ export function projectGoalDate(
  * @param startValue - Value when goal was created
  * @param currentValue - Current value
  * @param targetValue - Target value
- * @param direction - Whether the goal requires increase or decrease
  * @returns Progress percentage (0-100, can exceed 100 if surpassed)
  */
 export function calculateProgress(
   startValue: number,
   currentValue: number,
   targetValue: number,
-  direction: GoalDirection,
 ): number {
   const totalChange = targetValue - startValue;
 
@@ -358,14 +332,27 @@ export function calculateProgress(
   }
 
   const currentChange = currentValue - startValue;
-  const progress = (currentChange / totalChange) * 100;
+  return Math.round((currentChange / totalChange) * 100);
+}
 
-  // For decrease goals, invert the logic
-  if (direction === "decrease") {
-    return Math.round(progress);
+/**
+ * Extract metric data points from measurements using config.getValue.
+ * Returns sorted (by date ascending) non-null data points.
+ */
+function extractDataPoints(
+  measurements: Doc<"measurements">[],
+  config: MetricConfig,
+  profile?: Doc<"userProfiles"> | null,
+): Array<{ date: number; value: number }> {
+  const dataPoints: Array<{ date: number; value: number }> = [];
+  for (const m of measurements) {
+    const value = config.getValue(m, profile);
+    if (value !== null) {
+      dataPoints.push({ date: m.date, value });
+    }
   }
-
-  return Math.round(progress);
+  dataPoints.sort((a, b) => a.date - b.date);
+  return dataPoints;
 }
 
 /**
@@ -390,24 +377,12 @@ export function calculateProjection(
   const config = METRIC_CONFIG[metric];
   if (!config) return null;
 
-  // Use provided direction or fall back to metric config default
   const effectiveDirection = direction ?? config.direction;
-
-  // Extract values for this metric
-  const dataPoints: Array<{ date: number; value: number }> = [];
-  for (const m of measurements) {
-    const value = config.getValue(m, profile);
-    if (value !== null) {
-      dataPoints.push({ date: m.date, value });
-    }
-  }
+  const dataPoints = extractDataPoints(measurements, config, profile);
 
   if (dataPoints.length === 0) {
     return null;
   }
-
-  // Sort by date ascending
-  dataPoints.sort((a, b) => a.date - b.date);
 
   const currentValue = dataPoints[dataPoints.length - 1].value;
   const effectiveStartValue = startValue ?? dataPoints[0].value;
@@ -421,7 +396,6 @@ export function calculateProjection(
     effectiveStartValue,
     currentValue,
     targetValue,
-    effectiveDirection,
   );
 
   // Check if moving in right direction
@@ -455,6 +429,32 @@ export function calculateProjection(
 }
 
 /**
+ * Find the index of the last measurement with date <= cutoff using binary search.
+ * Measurements must be sorted by date ascending.
+ * Returns -1 if no measurement is at or before the cutoff.
+ */
+function findCutoffIndex(
+  measurements: Doc<"measurements">[],
+  cutoffDate: number,
+): number {
+  let lo = 0;
+  let hi = measurements.length - 1;
+  let result = -1;
+
+  while (lo <= hi) {
+    const mid = (lo + hi) >>> 1;
+    if (measurements[mid].date <= cutoffDate) {
+      result = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+
+  return result;
+}
+
+/**
  * Build wiggle chart data by calculating historical projections
  *
  * This derives what the projection would have been at each past snapshot date,
@@ -479,8 +479,10 @@ export function buildWiggleChartData(
   const config = METRIC_CONFIG[metric];
   if (!config) return [];
 
-  // Use provided direction or fall back to metric config default
   const effectiveDirection = direction ?? config.direction;
+
+  // Pre-sort measurements once
+  const sorted = measurements.toSorted((a, b) => a.date - b.date);
 
   const snapshots: WiggleDataPoint[] = [];
 
@@ -488,30 +490,22 @@ export function buildWiggleChartData(
     const snapshotDate = subWeeks(new Date(), i);
     const snapshotTimestamp = snapshotDate.getTime();
 
-    // Filter to only measurements before this snapshot date
-    const measurementsAtTime = measurements.filter(
-      (m) => m.date <= snapshotTimestamp,
-    );
-
-    if (measurementsAtTime.length < 3) {
-      continue; // Need at least 3 points for projection
+    // Binary search for the cutoff index instead of filtering the whole array
+    const cutoffIndex = findCutoffIndex(sorted, snapshotTimestamp);
+    if (cutoffIndex < 2) {
+      continue; // Need at least 3 measurements
     }
 
     // Extract values for this metric up to snapshot date
-    const dataPoints: Array<{ date: number; value: number }> = [];
-    for (const m of measurementsAtTime) {
-      const value = config.getValue(m, profile);
-      if (value !== null) {
-        dataPoints.push({ date: m.date, value });
-      }
-    }
+    const dataPoints = extractDataPoints(
+      sorted.slice(0, cutoffIndex + 1),
+      config,
+      profile,
+    );
 
     if (dataPoints.length < 3) {
       continue;
     }
-
-    // Sort by date ascending
-    dataPoints.sort((a, b) => a.date - b.date);
 
     const currentValue = dataPoints[dataPoints.length - 1].value;
 
@@ -551,8 +545,8 @@ export function getLatestValue(
   const config = METRIC_CONFIG[metric];
   if (!config) return null;
 
-  // Sort by date descending and find first with value
-  const sorted = [...measurements].sort((a, b) => b.date - a.date);
+  // Sort descending to find most recent value first
+  const sorted = measurements.toSorted((a, b) => b.date - a.date);
 
   for (const m of sorted) {
     const value = config.getValue(m, profile);

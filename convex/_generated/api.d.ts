@@ -8,12 +8,15 @@
  * @module
  */
 
-import type * as auth from "../auth.js";
 import type * as goals from "../goals.js";
+import type * as helpers from "../helpers.js";
 import type * as http from "../http.js";
 import type * as import_ from "../import.js";
 import type * as measurements from "../measurements.js";
+import type * as migrate from "../migrate.js";
 import type * as userProfile from "../userProfile.js";
+import type * as users from "../users.js";
+import type * as validators from "../validators.js";
 
 import type {
   ApiFromModules,
@@ -22,12 +25,15 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  auth: typeof auth;
   goals: typeof goals;
+  helpers: typeof helpers;
   http: typeof http;
   import: typeof import_;
   measurements: typeof measurements;
+  migrate: typeof migrate;
   userProfile: typeof userProfile;
+  users: typeof users;
+  validators: typeof validators;
 }>;
 
 /**

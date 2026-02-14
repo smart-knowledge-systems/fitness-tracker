@@ -4,7 +4,11 @@
  */
 
 import { GPXParser, RouteStats } from "./gpxParser";
-import { GoalPaceSolver, SolverResult } from "./goalPaceSolver";
+import {
+  GoalPaceSolver,
+  SolverResult,
+  DownhillAdjustment,
+} from "./goalPaceSolver";
 import { formatTime } from "./gapCalculations";
 
 export interface LapSplit {
@@ -191,6 +195,7 @@ export class LapCalculator {
         hasDownhillSpeedCap: this.checkForDownhillSpeedCap(
           lapStart.distance,
           lapEnd.distance,
+          this.solver.downhillAdjustments,
         ),
       };
 
@@ -230,7 +235,7 @@ export class LapCalculator {
       );
 
       // Apply GAP and altitude adjustments
-      const adjustedSpeed = this.solver.applyGAPAdjustment(
+      const { speed: adjustedSpeed } = this.solver.applyGAPAdjustment(
         basePaceMs,
         averageGrade,
         averageElevation,
@@ -304,25 +309,20 @@ export class LapCalculator {
   }
 
   /**
-   * Check if a lap segment contains any downhill speed cap adjustments
+   * Check if a lap segment contains any downhill speed cap adjustments.
+   * Accepts adjustments explicitly to avoid coupling to solver internals.
    */
   private checkForDownhillSpeedCap(
     startDistance: number,
     endDistance: number,
+    adjustments: DownhillAdjustment[],
   ): boolean {
-    if (
-      !this.solver.downhillAdjustments ||
-      this.solver.downhillAdjustments.length === 0
-    ) {
-      return false;
-    }
+    if (adjustments.length === 0) return false;
 
-    return this.solver.downhillAdjustments.some((adjustment) => {
-      return (
-        adjustment.startDistance < endDistance &&
-        adjustment.endDistance > startDistance
-      );
-    });
+    return adjustments.some(
+      (adj) =>
+        adj.startDistance < endDistance && adj.endDistance > startDistance,
+    );
   }
 
   /**
@@ -338,26 +338,29 @@ export class LapCalculator {
       throw new Error("No lap splits to analyze");
     }
 
-    // Find hardest and easiest laps
+    // Single pass: find min/max laps and accumulate pace sum
     let hardestLap = lapSplits[0];
     let easiestLap = lapSplits[0];
     let slowestLap = lapSplits[0];
     let fastestLap = lapSplits[0];
+    let paceSum = 0;
 
     for (const split of lapSplits) {
       if (split.averageGrade > hardestLap.averageGrade) hardestLap = split;
       if (split.averageGrade < easiestLap.averageGrade) easiestLap = split;
       if (split.averagePace > slowestLap.averagePace) slowestLap = split;
       if (split.averagePace < fastestLap.averagePace) fastestLap = split;
+      paceSum += split.averagePace;
     }
 
-    // Calculate pace variation
-    const paces = lapSplits.map((s) => s.averagePace);
-    const avgPace = paces.reduce((a, b) => a + b, 0) / paces.length;
-    const paceVariation = Math.sqrt(
-      paces.reduce((sum, pace) => sum + Math.pow(pace - avgPace, 2), 0) /
-        paces.length,
-    );
+    const avgPace = paceSum / lapSplits.length;
+
+    // Second pass for variance (requires avgPace from first pass)
+    let varianceSum = 0;
+    for (const split of lapSplits) {
+      varianceSum += (split.averagePace - avgPace) ** 2;
+    }
+    const paceVariation = Math.sqrt(varianceSum / lapSplits.length);
 
     return {
       hardestLap,

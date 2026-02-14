@@ -40,8 +40,8 @@ export function useWiggleChartData({
   profile,
   weeks,
 }: UseWiggleChartDataOptions): UseWiggleChartDataResult {
-  // Stable reference time for calculations (doesn't change on re-renders)
-  const [now] = useState(() => Date.now());
+  // Stable reference time — captured once, stable across re-renders
+  const [now] = useState(Date.now);
 
   // Filter to active (non-completed) goals
   const activeGoals = useMemo(() => goals.filter((g) => !g.completed), [goals]);
@@ -147,8 +147,13 @@ export function useWiggleChartData({
   const availableWeekOptions = useMemo(() => {
     if (measurements.length === 0) return [4];
 
-    const measurementDates = measurements.map((m) => m.date);
-    const oldestDate = Math.min(...measurementDates);
+    // Single pass to find oldest date (avoids intermediate array + spread)
+    let oldestDate = measurements[0].date;
+    for (let i = 1; i < measurements.length; i++) {
+      if (measurements[i].date < oldestDate) {
+        oldestDate = measurements[i].date;
+      }
+    }
     const dataSpanWeeks = (now - oldestDate) / (7 * 24 * 60 * 60 * 1000);
 
     return WEEK_OPTIONS.filter((w) => dataSpanWeeks >= w - 1);

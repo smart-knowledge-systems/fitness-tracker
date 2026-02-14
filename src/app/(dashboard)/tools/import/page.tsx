@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,6 +22,7 @@ import {
   convertWeightForStorage,
   convertLengthForStorage,
 } from "@/lib/unitConversion";
+import { UnitToggles } from "@/components/UnitToggles";
 
 // Expected CSV columns mapping
 const COLUMN_MAP: Record<string, string> = {
@@ -83,12 +84,33 @@ const COLUMN_MAP: Record<string, string> = {
 
 interface ParsedRow {
   date: number;
+  fieldCount: number;
   [key: string]: number | undefined;
 }
 
-// Core metric fields that need unit conversion
-const WEIGHT_FIELDS = ["weight"];
-const LENGTH_FIELDS = ["waistCirc", "neckCirc", "hipCirc", "height"];
+// Fields that need unit conversion (all circumference + height)
+// Using Sets for O(1) lookups during CSV parsing
+const WEIGHT_FIELDS = new Set(["weight"]);
+const LENGTH_FIELDS = new Set([
+  "waistCirc",
+  "neckCirc",
+  "hipCirc",
+  "height",
+  "upperArmCirc",
+  "lowerArmCirc",
+  "thighCirc",
+  "calfCirc",
+  "chestCirc",
+  "shoulderCirc",
+]);
+
+function getExampleCSV(weightUnit: WeightUnit, lengthUnit: LengthUnit): string {
+  const w = weightUnit === "lbs" ? ["166.5", "165.3"] : ["75.5", "75.0"];
+  const l = lengthUnit === "in" ? ["32.25", "15"] : ["82", "38"];
+  return `date,weight,waist,neck,chest,tricep
+2024-01-15,${w[0]},${l[0]},${l[1]},8,10
+2024-01-22,${w[1]},${l[0]},${l[1]},7,9`;
+}
 
 export default function ImportPage() {
   const importMeasurements = useMutation(api.import.importMeasurements);
@@ -102,25 +124,27 @@ export default function ImportPage() {
   const [preview, setPreview] = useState<ParsedRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // Unit preferences
-  const [weightUnit, setWeightUnit] = useState<WeightUnit>("kg");
-  const [lengthUnit, setLengthUnit] = useState<LengthUnit>("cm");
+  // Unit preferences — null means "not yet overridden, use profile default"
+  const [weightUnitOverride, setWeightUnitOverride] =
+    useState<WeightUnit | null>(null);
+  const [lengthUnitOverride, setLengthUnitOverride] =
+    useState<LengthUnit | null>(null);
   const [saveUnitsAsDefault, setSaveUnitsAsDefault] = useState(false);
 
-  // Initialize units from user profile
-  useEffect(() => {
-    if (userProfile) {
-      setWeightUnit(userProfile.weightUnit ?? "kg");
-      setLengthUnit(userProfile.lengthUnit ?? "cm");
-    }
-  }, [userProfile]);
+  // Derive current units: user override > profile default > fallback
+  const weightUnit = weightUnitOverride ?? userProfile?.weightUnit ?? "kg";
+  const lengthUnit = lengthUnitOverride ?? userProfile?.lengthUnit ?? "cm";
 
   // Check if units differ from profile defaults
   const unitsChanged =
     (userProfile?.weightUnit ?? "kg") !== weightUnit ||
     (userProfile?.lengthUnit ?? "cm") !== lengthUnit;
 
-  const parseCSV = (content: string): ParsedRow[] => {
+  const parseCSV = (
+    content: string,
+    wUnit: WeightUnit,
+    lUnit: LengthUnit,
+  ): ParsedRow[] => {
     const lines = content.trim().split("\n");
     if (lines.length < 2)
       throw new Error("CSV must have a header and at least one data row");
@@ -148,13 +172,11 @@ export default function ImportPage() {
       mappedHeaders.forEach((header, index) => {
         if (index < values.length && values[index]) {
           if (header === "date") {
-            // Parse date
             const dateValue = Date.parse(values[index]);
             if (!isNaN(dateValue)) {
               row.date = dateValue;
             }
           } else if (header === "time5k" || header === "time1k") {
-            // Parse time format MM:SS or HH:MM:SS
             const parts = values[index].split(":").map(Number);
             if (!parts.some(isNaN)) {
               if (parts.length === 2) {
@@ -164,14 +186,12 @@ export default function ImportPage() {
               }
             }
           } else {
-            // Parse number
             const num = parseFloat(values[index]);
             if (!isNaN(num)) {
-              // Apply unit conversion for core metrics
-              if (WEIGHT_FIELDS.includes(header)) {
-                row[header] = convertWeightForStorage(num, weightUnit);
-              } else if (LENGTH_FIELDS.includes(header)) {
-                row[header] = convertLengthForStorage(num, lengthUnit);
+              if (WEIGHT_FIELDS.has(header)) {
+                row[header] = convertWeightForStorage(num, wUnit);
+              } else if (LENGTH_FIELDS.has(header)) {
+                row[header] = convertLengthForStorage(num, lUnit);
               } else {
                 row[header] = num;
               }
@@ -181,6 +201,10 @@ export default function ImportPage() {
       });
 
       if (row.date) {
+        // Pre-compute field count to avoid recalculating in render
+        row.fieldCount = Object.keys(row).filter(
+          (k) => k !== "date" && k !== "fieldCount" && row[k] !== undefined,
+        ).length;
         results.push(row as ParsedRow);
       }
     }
@@ -191,7 +215,7 @@ export default function ImportPage() {
   const handlePreview = () => {
     setError(null);
     try {
-      const parsed = parseCSV(csvContent);
+      const parsed = parseCSV(csvContent, weightUnit, lengthUnit);
       setPreview(parsed);
       toast.success(`Parsed ${parsed.length} rows`);
     } catch (e) {
@@ -208,13 +232,17 @@ export default function ImportPage() {
 
     setIsImporting(true);
     try {
-      const result = await importMeasurements({
-        measurements: preview,
-      });
+      const importPromise = importMeasurements({ measurements: preview });
 
-      // Save unit preferences if requested
-      if (saveUnitsAsDefault && unitsChanged) {
-        await updateUnitPreferences({ weightUnit, lengthUnit });
+      // Run unit preferences update in parallel if requested
+      const unitPromise =
+        saveUnitsAsDefault && unitsChanged
+          ? updateUnitPreferences({ weightUnit, lengthUnit })
+          : null;
+
+      const [result] = await Promise.all([importPromise, unitPromise]);
+
+      if (unitPromise) {
         toast.success(
           `Imported ${result.imported} measurements and updated unit preferences`,
         );
@@ -265,59 +293,19 @@ export default function ImportPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Unit toggles */}
-            <div className="flex flex-wrap gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground">Weight:</span>
-                <div className="inline-flex rounded-md border">
-                  <button
-                    type="button"
-                    className={`px-2 py-1 text-xs ${weightUnit === "kg" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                    onClick={() => {
-                      setWeightUnit("kg");
-                      setPreview([]);
-                    }}
-                  >
-                    kg
-                  </button>
-                  <button
-                    type="button"
-                    className={`px-2 py-1 text-xs ${weightUnit === "lbs" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                    onClick={() => {
-                      setWeightUnit("lbs");
-                      setPreview([]);
-                    }}
-                  >
-                    lbs
-                  </button>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground">Length:</span>
-                <div className="inline-flex rounded-md border">
-                  <button
-                    type="button"
-                    className={`px-2 py-1 text-xs ${lengthUnit === "cm" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                    onClick={() => {
-                      setLengthUnit("cm");
-                      setPreview([]);
-                    }}
-                  >
-                    cm
-                  </button>
-                  <button
-                    type="button"
-                    className={`px-2 py-1 text-xs ${lengthUnit === "in" ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                    onClick={() => {
-                      setLengthUnit("in");
-                      setPreview([]);
-                    }}
-                  >
-                    in
-                  </button>
-                </div>
-              </div>
-            </div>
+            <UnitToggles
+              weightUnit={weightUnit}
+              lengthUnit={lengthUnit}
+              onWeightChange={(unit) => {
+                setWeightUnitOverride(unit);
+                setPreview([]);
+              }}
+              onLengthChange={(unit) => {
+                setLengthUnitOverride(unit);
+                setPreview([]);
+              }}
+              size="compact"
+            />
 
             <div className="flex items-center gap-4">
               <Button
@@ -341,7 +329,7 @@ export default function ImportPage() {
               <Label htmlFor="csv">CSV Data</Label>
               <Textarea
                 id="csv"
-                placeholder="date,weight,waist,neck,chest,tricep,abdominal,thigh&#10;2024-01-15,75.5,82,38,8,10,15,12"
+                placeholder={`date,weight,waist,neck,chest,tricep,abdominal,thigh\n2024-01-15,75.5,82,38,8,10,15,12`}
                 value={csvContent}
                 onChange={(e) => {
                   setCsvContent(e.target.value);
@@ -359,7 +347,6 @@ export default function ImportPage() {
               </div>
             )}
 
-            {/* Save unit preferences checkbox - only visible when units differ from profile */}
             {unitsChanged && (
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -435,7 +422,7 @@ export default function ImportPage() {
                 </p>
               </div>
               <div>
-                <h4 className="font-medium">Circumferences (cm)</h4>
+                <h4 className="font-medium">Circumferences ({lengthUnit})</h4>
                 <p className="text-muted-foreground">
                   upper_arm, lower_arm, thigh_circ, calf, chest_circ, shoulder
                 </p>
@@ -449,21 +436,7 @@ export default function ImportPage() {
               <div className="rounded-md bg-muted p-3">
                 <p className="font-medium">Example CSV:</p>
                 <pre className="mt-2 overflow-x-auto text-xs">
-                  {weightUnit === "kg" && lengthUnit === "cm"
-                    ? `date,weight,waist,neck,chest,tricep
-2024-01-15,75.5,82,38,8,10
-2024-01-22,75.0,81,38,7,9`
-                    : weightUnit === "lbs" && lengthUnit === "in"
-                      ? `date,weight,waist,neck,chest,tricep
-2024-01-15,166.5,32.25,15,8,10
-2024-01-22,165.3,31.9,15,7,9`
-                      : weightUnit === "lbs"
-                        ? `date,weight,waist,neck,chest,tricep
-2024-01-15,166.5,82,38,8,10
-2024-01-22,165.3,81,38,7,9`
-                        : `date,weight,waist,neck,chest,tricep
-2024-01-15,75.5,32.25,15,8,10
-2024-01-22,75.0,31.9,15,7,9`}
+                  {getExampleCSV(weightUnit, lengthUnit)}
                 </pre>
               </div>
             </div>
@@ -500,13 +473,7 @@ export default function ImportPage() {
                         {row.waistCirc ?? "-"}
                       </td>
                       <td className="py-2 text-right">{row.neckCirc ?? "-"}</td>
-                      <td className="py-2 text-right">
-                        {
-                          Object.keys(row).filter(
-                            (k) => k !== "date" && row[k] !== undefined,
-                          ).length
-                        }
-                      </td>
+                      <td className="py-2 text-right">{row.fieldCount}</td>
                     </tr>
                   ))}
                   {preview.length > 10 && (

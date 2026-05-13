@@ -60,8 +60,7 @@ export default function CooperTestPage() {
     };
   }, []);
 
-  // Derive age from profile — simple arithmetic, no useMemo needed
-  const now = Date.now();
+  const [now] = useState(Date.now);
   const age = userProfile?.birthDate
     ? Math.floor((now - userProfile.birthDate) / MS_PER_YEAR)
     : 30;

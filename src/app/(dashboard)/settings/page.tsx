@@ -50,10 +50,10 @@ export default function SettingsPage() {
   const displayHeight =
     height ?? (userProfile?.height ? userProfile.height.toString() : "");
 
+  const [now] = useState(Date.now);
   const age = displayBirthDate
     ? Math.floor(
-        (Date.now() - localDateStringToTimestamp(displayBirthDate)) /
-          MS_PER_YEAR,
+        (now - localDateStringToTimestamp(displayBirthDate)) / MS_PER_YEAR,
       )
     : null;
 

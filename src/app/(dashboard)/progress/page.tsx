@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import {
@@ -46,10 +46,9 @@ const formatDateFull = (timestamp: number) =>
     year: "numeric",
   });
 
-// Stable tooltip label formatter — extracted to avoid inline recreation
 function tooltipLabelFormatter(
-  _label: string,
-  payload: Array<{ payload?: { date?: number } }>,
+  _label: ReactNode,
+  payload: readonly { payload?: { date?: number } }[],
 ) {
   return payload?.[0]?.payload?.date
     ? formatDateFull(payload[0].payload.date)

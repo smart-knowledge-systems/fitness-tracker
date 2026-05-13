@@ -5,19 +5,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-pnpm dev           # Start Next.js + Convex dev servers concurrently
-pnpm build         # Production build
-pnpm lint          # Run ESLint
-pnpm typecheck     # TypeScript type checking
-pnpm check         # Run both lint and typecheck
-pnpm format        # Format code with Prettier
-pnpm format:check  # Check formatting without writing
+bun dev           # Start Next.js + Convex dev servers concurrently
+bun run build     # Production build
+bun lint          # Run ESLint
+bun typecheck     # TypeScript type checking
+bun check         # Run both lint and typecheck
+bun format        # Format code with Prettier
+bun format:check  # Check formatting without writing
 ```
 
 Add shadcn components:
 
 ```bash
-pnpx shadcn@latest add <component-name>
+bunx shadcn@latest add <component-name>
 ```
 
 ## Architecture
